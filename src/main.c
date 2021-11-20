@@ -19,6 +19,8 @@
 #include "services/fetch_email_content_by_id.h"
 #include "services/fetch_object_type.h"
 #include "utils/string_helpers.h"
+#include "services/create_new_label.h"
+#include "services/delete_label.h"
 
 // if I am at "x" then I shall keep track of all
 
@@ -29,11 +31,11 @@
 #define OPTION(t, p)                           \
     { t, offsetof(mailbox_config, p), 1 }
 static const struct fuse_opt option_spec[] = {
-        OPTION("--hostname=%s", ip_address),
-        OPTION("--port=%s", port),
-        OPTION("--email=%s", email),
-        OPTION("--password=%s", password),
-        FUSE_OPT_END
+	OPTION("--hostname=%s", ip_address),
+	OPTION("--port=%s", port),
+	OPTION("--email=%s", email),
+	OPTION("--password=%s", password),
+	FUSE_OPT_END
 };
 
 void show_help(){
@@ -53,7 +55,7 @@ static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
     (void) conn;
     // cfg->kernel_cache = 1;
 		// check
-		cfg->attr_timeout=100000;
+		// cfg->attr_timeout=100000;
 
 		private_data_node* private_data=(private_data_node*)malloc(sizeof(private_data_node));
 		private_data->config=config;
@@ -125,9 +127,10 @@ static int mail_fs_open(const char *path, struct fuse_file_info *fi){
 
 static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
 	(void) fi;
-	// if(0==strcmp(path, "/.git") || 0==strcmp(path, "/.rbenv-version") || 0==strcmp(path, "/Gemfile") || 0==strcmp(path, "/.rvm") || 0==strcmp(path, "/__rvm_cleanup_download") || 0==strcmp(path, "/HEAD") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.rvmrc") || 0==strcmp(path, "/.versions.conf") || 0==strcmp(path, "/.ruby-version") || 0==strcmp(path, "/.rbfu-version")){
-	// 	return -ENOENT;
-	// }
+	// TODO: remove it later. keep it active for now
+	if(0==strcmp(path, "/.git") || 0==strcmp(path, "/.rbenv-version") || 0==strcmp(path, "/Gemfile") || 0==strcmp(path, "/.rvm") || 0==strcmp(path, "/__rvm_cleanup_download") || 0==strcmp(path, "/HEAD") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.rvmrc") || 0==strcmp(path, "/.versions.conf") || 0==strcmp(path, "/.ruby-version") || 0==strcmp(path, "/.rbfu-version")){
+		return -ENOENT;
+	}
 	memset(stbuf, 0, sizeof(struct stat));
 
 	stbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
@@ -208,6 +211,40 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 // }
 
 
+// create a new folder
+static int mail_fs_mkdir(const char * path, mode_t mode){
+	printf("\033[1;31m");
+	printf("Debug: log mail_fs_mkdir: %s\n", path);
+	printf("\033[0m");
+
+	char root_dirname[10000];
+	char objectname[10000];
+	split_path_to_components(root_dirname, objectname, path);
+	if(strcmp(root_dirname,"/")==0){
+		private_data_node* data=PVT_DATA;
+		// allowed to create directory
+		int res=create_new_label(data->curl, path);
+		if(res){
+			printf("Debug: Failed to create\n");
+			return -ENONET;
+		}
+	}else{
+		// only 1 level is allowed
+		return -EACCES;
+	}
+
+	return 0;
+}
+
+
+static int mail_fs_rmdir(const char * path){
+	private_data_node* data=PVT_DATA;
+	int res=delete_label(data->curl, path);
+	if(res) return -ENONET; // network error
+	return 0;
+}
+
+
 static const struct fuse_operations mail_fs_operations = {
     .init           = mail_fs_init,
     .getattr        = mail_fs_getattr,
@@ -215,6 +252,8 @@ static const struct fuse_operations mail_fs_operations = {
     // .destroy 				= mail_fs_destroy
     .open           = mail_fs_open,
     .read           = mail_fs_read,
+		.mkdir					= mail_fs_mkdir,
+		.rmdir					= mail_fs_rmdir,
 };
 
 

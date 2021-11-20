@@ -17,7 +17,7 @@
  * @param new_folder_name: folder_name or the label which we shall create
  * @return int: returns 1 if unsuccessful; 0 if successful
  */
-int create_new_label(CURL* curl, char* new_folder_name){
+int create_new_label(CURL* curl, const char* new_folder_name){
   if(!curl) return 1;
 
   char tmp[1000];
@@ -31,6 +31,11 @@ int create_new_label(CURL* curl, char* new_folder_name){
 
   /* Perform the fetch */
   int res = curl_easy_perform(curl);
+
+	// reset
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
+
   if(res != CURLE_OK){
     printf("Err: Unable to create new folder; msg: %s\n", curl_easy_strerror(res));
     return 1;
