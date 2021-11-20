@@ -25,7 +25,7 @@ void hashmap_init(){
 }
 
 // hashmap ops
-// TODO: make the hashmap more efficient; For now it's linear. :(
+// make the hashmap more efficient; For now it's linear. :(
 
 // -1 if cache miss; 0 if doesn't exist; 1 if dir; 2 if file
 int search_hashmap(char* path){
@@ -64,7 +64,7 @@ void push_object(const char* path, int object_type){
 void invalidate_object_if_exist(const char* path){
 	printf("Trying to invalidate: %s\n", path);
 	for(int i=0;i<NUMBER_OF_CACHED_NODES;i++){
-		if(container[i].is_valid) printf("%s", container[i].path);
+		// if(container[i].is_valid) printf("%s", container[i].path);
 		if(container[i].is_valid && strcmp(path,container[i].path)==0){
 			container[i].is_valid=0;
 			printf("INVALIDATE SUCCESSFUL\n");

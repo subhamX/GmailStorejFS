@@ -1,6 +1,6 @@
 # Else git extention will poll for changes
 mydir/
 git-tmp/
-README.md
+README-tmp.md
 a.out
 .vscode

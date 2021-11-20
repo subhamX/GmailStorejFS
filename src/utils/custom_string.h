@@ -3,7 +3,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-
+/**
+ * @brief function to initialize the custom string with NULL values
+ *
+ * @param s
+ */
 void init_custom_string(struct custom_string *s) {
   s->len = 0;
   s->ptr = malloc(s->len+1);

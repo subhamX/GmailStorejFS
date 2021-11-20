@@ -5,7 +5,9 @@
 #include <uuid/uuid.h>
 
 
-
+/**
+ * @brief Get the uuid object
+ */
 void get_uuid(char out[UUID_STR_LEN]) {
   uuid_t b;
   uuid_generate(b);

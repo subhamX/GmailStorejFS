@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <curl/curl.h>
 #include <unistd.h>
-#include "mail/mail_client.h"
 #include "utils/definitions.h"
 #include "services/curl_handle_init.h"
 #include "services/fetch_all_labels.h"
@@ -27,10 +26,6 @@
 #include "utils/hashmap.h"
 #include "services/change_label.h"
 
-// if I am at "x" then I shall keep track of all
-
-// TODO: I have data when I call readdir; now how to pass it to getattr
-
 #define PVT_DATA ((private_data_node *) fuse_get_context()->private_data)
 
 #define OPTION(t, p)                           \
@@ -43,6 +38,10 @@ static const struct fuse_opt option_spec[] = {
 	FUSE_OPT_END
 };
 
+/**
+ * @brief fun to print a small prompt to user for help
+ *
+ */
 void show_help(){
 	printf("Usage: [Mount Point] [IP Address] [PORT] [Email] [Password]\n");
 }
@@ -50,13 +49,20 @@ void show_help(){
 // variable to store the mailbox config
 static mailbox_config* config=NULL;
 
+
+/**
+ * @brief method to be executed by fuse while initializing the module
+ *
+ * @param conn
+ * @param cfg
+ * @return void*
+ */
 static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
     // connect to the mail client with the credentials
     // and return the pointer
 
     // initialize the logging ptr which has an open file descripter
     // every ops will be logged there
-    // ! Ensure that the log file isn't in the mount folder
     (void) conn;
     // cfg->kernel_cache = 1;
 		// check
@@ -72,11 +78,21 @@ static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 		curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL,&tmp);
 		private_data->base_full_url=strdup(tmp);
 		private_data->curl=curl;
-    // TODO: destory everything in mail_fs_destroy
+    // destory everything in mail_fs_destroy
     return private_data;
 }
 
-
+/**
+ * @brief method to use the curl handle and get the labels, and emails on server and map it to folders and files respectively
+ *
+ * @param path
+ * @param buf
+ * @param filler
+ * @param offset
+ * @param fi
+ * @param flags
+ * @return int
+ */
 static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi, enum fuse_readdir_flags flags){
 	(void) offset;
 	(void) fi;
@@ -117,18 +133,27 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	return 0;
 }
 
-
+/**
+ * @brief function to allow opening of files
+ *
+ * @param path
+ * @param fi
+ * @return int
+ */
 static int mail_fs_open(const char *path, struct fuse_file_info *fi){
-	// TODO: shall I check ?
 	printf("\033[0;35m");
 	printf("Debug: log mail_fs_open: %s\n", path);
 	printf("\033[0m");
-	// if ((fi->flags & O_ACCMODE) != O_RDONLY)
+	// if ((fi->flags & O_ACCMODE) != O_APPEND)
 	// 	return -EACCES;
 	return 0;
 }
 
-
+/**
+ * @brief function to set the attributes of file and folders
+ *
+ * @return int: 0 if successful, -ERR if error
+ */
 static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
 	(void) fi;
 	// TODO: remove it later. keep it active for now
@@ -153,15 +178,24 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	private_data_node* data=PVT_DATA;
 
 	int res = 0;
+	char root_dirname[10000];
+	char objectname[10000];
 
-	int object_type=fetch_object_type(data->curl,path,data->base_full_url);
+	split_path_to_components(root_dirname, objectname, path);
+	printf("Debug: root_dirname: %s\n", root_dirname);
+	printf("Debug: objectname: %s\n", objectname);
+	int object_type=fetch_object_type_by_dirname_and_objectname(data->curl,root_dirname,objectname,data->base_full_url);
 	printf("Debug: FETCH_OBJECT_TYPE: %d\n\n", object_type);
 
 	if(object_type==1){
 		stbuf->st_mode = S_IFDIR | 0777;
 		stbuf->st_nlink = 2;
 	}else if(object_type==2){
+		// if(objectname[0]>='0' && objectname[0]<='9'){
+			// stbuf->st_mode = S_IFREG | 02000;
+		// }else{
 		stbuf->st_mode = S_IFREG | 0777;
+		// }
 		stbuf->st_nlink = 1;
 		stbuf->st_size = 1000000;
 	}else{
@@ -172,6 +206,11 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 }
 
 
+/**
+ * @brief function to set the buffer with the contents of the file after fetching from server
+ *
+ * @return int: 0 if successful, -ERR if error
+ */
 static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
 	size_t len;
 	(void) fi;
@@ -206,14 +245,22 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 	return size;
 }
 
+/**
+ * @brief function to deallocate all private data like curl handle etc
+ *
+ */
+static void mail_fs_destroy(void *private_data){
+	// In docs it's mentioned to "re-using handles is a key to good performance with libcurl"
+	// so we shall clean it in the end
+	private_data_node* pvt_data=(private_data_node*)private_data;
+	curl_easy_cleanup(pvt_data->curl);
+}
 
-// static int mail_fs_destroy(){
-
-//     // TODO: Always cleanup
-//     // In docs it's mentioned to "re-using handles is a key to good performance with libcurl"
-//     // so we shall clean it in the end
-//     // curl_easy_cleanup(curl);
-// }
+/**
+ * @brief function to allow writing data to files
+ *
+ * @return int: 0 if successful, -ERR if error
+ */
 static int mail_fs_write(const char * path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi){
 
 	printf("PATH: %s\n", path);
@@ -242,7 +289,9 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 }
 
 
-// create a new folder
+/**
+ * @brief function to create a new folder
+ */
 static int mail_fs_mkdir(const char * path, mode_t mode){
 	printf("\033[1;31m");
 	printf("Debug: log mail_fs_mkdir: %s\n", path);
@@ -271,6 +320,9 @@ static int mail_fs_mkdir(const char * path, mode_t mode){
 	return 0;
 }
 
+/**
+ * @brief function to create a new file
+ */
 static int mail_fs_mknod(const char *path, mode_t mode, dev_t rdev){
 	// create new file
 
@@ -299,7 +351,9 @@ static int mail_fs_rmdir(const char * path){
 
 
 
-
+/**
+ * @brief function to allow renaming of dirs and files
+ */
 static int mail_fs_rename(const char * from_path, const char * to_path, unsigned int flags){
 	printf("\033[1;31m");
 	printf("Debug: log mail_fs_rename: [%s] [%s]\n", from_path, to_path);
@@ -389,12 +443,19 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 
 
 
-
+/**
+ * @brief function to allow deletion of files
+ */
 static int mail_fs_unlink(const char * path){
 	private_data_node* data=PVT_DATA;
 	char root_dirname[10000];
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
+
+	if(objectname[0]>='0' && objectname[0]<='9'){
+		// not allowed
+		return -EACCES;
+	}
 
 	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
 	if(msg_id==-1){
@@ -409,9 +470,10 @@ static int mail_fs_unlink(const char * path){
 
 
 
-
+/**
+ * @brief struct defines all the functionalities the fs supports
+ */
 static const struct fuse_operations mail_fs_operations = {
-    // .destroy 				= mail_fs_destroy
     .init           = mail_fs_init,
     .getattr        = mail_fs_getattr,
     .readdir        = mail_fs_readdir,
@@ -423,32 +485,27 @@ static const struct fuse_operations mail_fs_operations = {
 		.mknod					= mail_fs_mknod,
 		.rename					= mail_fs_rename,
 		.unlink					= mail_fs_unlink,
+    .destroy 				= mail_fs_destroy,
 };
 
 
 
 int main(int argc, char* argv[]){
-		// if(argc!=6){
-		// 	show_help();
-		// 	return 1;
-		// }
+	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+	config=(mailbox_config*)malloc(sizeof(mailbox_config));
 
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-		config=(mailbox_config*)malloc(sizeof(mailbox_config));
+	if (fuse_opt_parse(&args, config, option_spec, NULL) == -1)
+		return 1;
 
-		if (fuse_opt_parse(&args, config, option_spec, NULL) == -1)
-			return 1;
+	// initialize the LRU cache
+	hashmap_init();
 
-		// initialize the LRU cache
-		hashmap_init();
+	int ret;
+	ret = fuse_main(args.argc, args.argv, &mail_fs_operations, NULL);
+	fuse_opt_free_args(&args);
 
-    int ret;
-    ret = fuse_main(args.argc, args.argv, &mail_fs_operations, NULL);
-		fuse_opt_free_args(&args);
 
-    // TODO: deallocating memory
-		free(config);
-
+	free(config);
 	return ret;
 }
 

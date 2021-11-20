@@ -9,14 +9,6 @@
 static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp){
   // contents is the data we just received
   // userp is our variable
-
-  // printf("--------START----------\n\n");
-  // printf("DEBUG: Got data of length %ld\n", size * nmemb);
-  // printf("DEBUG: Actual data of length %ld\n", strlen((char*)contents));
-  // printf("DEBUG: Data: %s\n", (char*) contents);
-  // printf("--------END----------\n\n");
-
-
   size_t realsize = size * nmemb;
   struct custom_string *mem = (struct custom_string *)userp;
 
@@ -35,7 +27,9 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
   return size * nmemb;
 }
 
-
+/**
+ * @brief function to do nothing and act as a dummy callback function
+ */
 size_t dummy_write_callback(void *buffer, size_t size, size_t nmemb, void *userp){
    return size * nmemb;
 }
