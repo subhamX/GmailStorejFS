@@ -49,25 +49,14 @@ char* get_subject_from_response_headers(custom_string* s){
 			i+=2;
 			continue;
 		}
-
-		// printf("HIT [%c] [%c] [%d] [%d]\n", s->ptr[i], s->ptr[i+1], s->ptr[i]=='\r', s->ptr[i+1]=='\r');
-
 		if(s->ptr[i]==')' && s->ptr[i+1]=='\r' && s->ptr[i+2]=='\n' && s->ptr[i+3]=='A'){
 			break;
 		}
-
-
 		if(s->ptr[i]!='\r' && s->ptr[i]!='\n'){
 			subject[k++]=s->ptr[i];
 		}
-		// printf("My: [%s]]]\n\n\n", subject);
 		i++;
 	}
-	// printf("BREAK::: %d", k);
-	// for(int i=0;i<k;i++){
-	// 	printf("%c", subject[i]);
-	// }
-	// printf("%s\n\n", subject);
 
 	return subject;
 
@@ -112,8 +101,6 @@ char* fetch_email_subject_by_id(CURL* curl, int id){
     printf("Err: Unable to fetch the email subject; msg: %s\n", curl_easy_strerror(res));
     return NULL;
   }
-
-	// printf("----> %s\n", s.ptr);
 
 	// parse
 	return get_subject_from_response_headers(&s);

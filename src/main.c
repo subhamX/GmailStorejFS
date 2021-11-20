@@ -24,6 +24,7 @@
 #include "services/relabel_an_email.h"
 #include "services/delete_email_by_id_and_folder.h"
 #include "services/create_new_mail.h"
+#include "utils/hashmap.h"
 
 // if I am at "x" then I shall keep track of all
 
@@ -250,6 +251,10 @@ static int mail_fs_mkdir(const char * path, mode_t mode){
 	split_path_to_components(root_dirname, objectname, path);
 	if(strcmp(root_dirname,"/")==0){
 		private_data_node* data=PVT_DATA;
+
+		// invalidate path
+		invalidate_object_if_exist(path);
+
 		// allowed to create directory
 		int res=create_new_label(data->curl, path);
 		if(res){
@@ -271,6 +276,9 @@ static int mail_fs_mknod(const char *path, mode_t mode, dev_t rdev){
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
 	create_new_mail(data->curl, root_dirname, objectname, "");
+
+	// invalidate cache
+	invalidate_object_if_exist(path);
 	return 0;
 }
 
@@ -312,11 +320,8 @@ int main(int argc, char* argv[]){
 		if (fuse_opt_parse(&args, config, option_spec, NULL) == -1)
 			return 1;
 
-
-		// config->ip_address=strdup(argv[2]);
-		// config->port=strdup(argv[3]);
-		// config->email=strdup(argv[4]);
-		// config->password=strdup(argv[5]);
+		// initialize the LRU cache
+		hashmap_init();
 
     int ret;
     ret = fuse_main(args.argc, args.argv, &mail_fs_operations, NULL);

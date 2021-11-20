@@ -77,7 +77,7 @@ int fetch_msgid_by_subject_and_label(CURL* curl, const char* subject, const char
 	int number_of_files=0;
 	int res=fetch_msgid_by_query(curl, query, indices, &number_of_files);
 	if(res || number_of_files!=1){
-		printf("Err: duplicate exist or something went wrong. This shouldn't have happened. :(\n");
+		// printf("Err: duplicate exist or something went wrong. This shouldn't have happened. :(\n");
 		return -1;
 	}
 

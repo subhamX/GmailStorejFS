@@ -11,12 +11,12 @@
 
 
 // return 0 if parsing was successful with this alter parsing logic
-int check_alter_parser(custom_string*s, int start_indx){
-	char* sep="Content-Type: text/plain; charset=\"UTF-8\"";
-	int sep_len=strlen(sep);
+// int check_alter_parser(custom_string*s, int start_indx){
+// 	char* sep="Content-Type: text/plain; charset=\"UTF-8\"";
+// 	int sep_len=strlen(sep);
 
-	return 0;
-}
+// 	return 0;
+// }
 
 char* get_content_from_response_headers(custom_string* s){
 	char* body=(char*)malloc(sizeof(char)*10000);
@@ -56,29 +56,12 @@ char* get_content_from_response_headers(custom_string* s){
 	while(s->ptr[end]!=')') end--;
 	int k=0;
 	while(i<end && s->ptr[i]!='\0'){
-		// if(s->ptr[i]=='\r' && s->ptr[i+1]=='\n'){
-		// 	i+=2;
-		// 	continue;
-		// }
-
-		printf("HIT [%c] [%c] [%d] [%d]\n", s->ptr[i], s->ptr[i+1], s->ptr[i]=='\r', s->ptr[i+1]=='\r');
-
 		if(s->ptr[i]==')' && s->ptr[i+1]=='\r' && s->ptr[i+2]=='\n' && s->ptr[i+3]=='A' && s->ptr[i+4]=='0' && s->ptr[i+5]=='0'){
 			break;
 		}
-
-
-		// if(s->ptr[i]!='\r' && s->ptr[i]!='\n'){
-			body[k++]=s->ptr[i];
-		// }
-		// printf("My: [%s]]]\n\n\n", subject);
+		body[k++]=s->ptr[i];
 		i++;
 	}
-	// printf("BREAK::: %d", k);
-	// for(int i=0;i<k;i++){
-	// 	printf("%c", subject[i]);
-	// }
-	// printf("%s\n\n", body);
 
 	return body;
 
