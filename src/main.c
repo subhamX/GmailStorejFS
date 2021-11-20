@@ -264,7 +264,10 @@ static void mail_fs_destroy(void *private_data){
 static int mail_fs_write(const char * path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi){
 
 	printf("PATH: %s\n", path);
-	printf("NEW CONTENT: %s\n", buf);
+	char new_content[size+1];
+	strncpy(new_content,buf,size);
+	new_content[size]='\0';
+	printf("NEW CONTENT: %s\n", new_content);
 	private_data_node* data=PVT_DATA;
 
 	// save the content to server
@@ -282,17 +285,17 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 	}else{
 		if(objectname[0]>='0' && objectname[0]<='9'){
 			char* old_content=fetch_email_content_by_id(data->curl,msg_id);int i=0,j=0;
-			int n1=strlen(old_content), n2=strlen(buf);
+			int n1=strlen(old_content), n2=strlen(new_content);
 			while(i<n1 && j<n2){
 				int is_old_rn=(i+1!=n1 && old_content[i]=='\r' && old_content[i+1]=='\n');
-				int is_new_rn=(j+1!=n2 && buf[j]=='\r' && buf[j+1]=='\n');
+				int is_new_rn=(j+1!=n2 && new_content[j]=='\r' && new_content[j+1]=='\n');
 				if(is_new_rn && is_old_rn){
 					i+=2,j+=2;
 				}else if(is_new_rn && old_content[i]=='\n'){
 					i++,j+=2;
-				}else if(is_old_rn && buf[j]=='\n'){
+				}else if(is_old_rn && new_content[j]=='\n'){
 					i+=2,j++;
-				}else if(old_content[i]==buf[j]){
+				}else if(old_content[i]==new_content[j]){
 					i++,j++;
 				}else{
 					return -EACCES;
@@ -304,7 +307,7 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 		delete_email_by_id_and_folder(data->curl, msg_id, root_dirname);
 	}
 	// create new
-	create_new_mail(data->curl, root_dirname, objectname, buf);
+	create_new_mail(data->curl, root_dirname, objectname, new_content);
 
 	return size;
 }
