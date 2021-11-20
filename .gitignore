@@ -1,0 +1,6 @@
+# Else git extention will poll for changes
+mydir/
+git-tmp/
+README.md
+a.out
+.vscode

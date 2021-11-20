@@ -1,0 +1,214 @@
+#define FUSE_USE_VERSION 31
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fuse.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stddef.h>
+#include <assert.h>
+#include <curl/curl.h>
+#include <unistd.h>
+#include "mail/mail_client.h"
+#include "utils/definitions.h"
+#include "utils/hashmap.h"
+#include "services/curl_handle_init.h"
+#include "services/fetch_all_labels.h"
+#include "services/fetch_all_emails_by_label.h"
+#include "utils/string_helpers.h"
+
+// if I am at "x" then I shall keep track of all
+
+// TODO: I have data when I call readdir; now how to pass it to getattr
+
+#define PVT_DATA ((private_data_node *) fuse_get_context()->private_data)
+
+#define OPTION(t, p)                           \
+    { t, offsetof(mailbox_config, p), 1 }
+static const struct fuse_opt option_spec[] = {
+        OPTION("--hostname=%s", ip_address),
+        OPTION("--port=%s", port),
+        OPTION("--email=%s", email),
+        OPTION("--password=%s", password),
+        FUSE_OPT_END
+};
+
+void show_help(){
+	printf("Usage: [Mount Point] [IP Address] [PORT] [Email] [Password]\n");
+}
+
+// variable to store the mailbox config
+static mailbox_config* config=NULL;
+
+static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
+    // connect to the mail client with the credentials
+    // and return the pointer
+
+    // initialize the logging ptr which has an open file descripter
+    // every ops will be logged there
+    // ! Ensure that the log file isn't in the mount folder
+    (void) conn;
+    // cfg->kernel_cache = 1;
+
+		private_data_node* private_data=(private_data_node*)malloc(sizeof(private_data_node));
+		private_data->config=config;
+		private_data->level=0;
+
+    CURL *curl;
+    curl_handle_init(&curl, private_data->config);
+		char* tmp;
+		curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL,&tmp);
+		private_data->base_full_url=strdup(tmp);
+		private_data->curl=curl;
+    // TODO: destory everything in mail_fs_destroy
+    return private_data;
+}
+
+
+static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi, enum fuse_readdir_flags flags){
+	(void) offset;
+	(void) fi;
+	(void) flags;
+
+	printf("\033[1;33m");
+	printf("Debug: log mail_fs_readdir: %s\n", path);
+	printf("\033[0m");
+
+	private_data_node* data=PVT_DATA;
+	char* labels_ptr[MAX_DIRS_IN_A_DIR];
+	int number_of_labels=0;
+
+	if (strcmp(path, "/")==0){
+		// lookup for both dirs and files
+		curl_handle_reset(data->curl, data->config);
+		fetch_all_labels(labels_ptr, &number_of_labels, data);
+	}
+
+	// fetch all emails
+	char* email_subjects[MAX_FILES_IN_A_DIR];
+	int number_of_emails=0;
+	fetch_all_emails_by_label(data->curl, path, email_subjects, &number_of_emails);
+
+	push_root_dir(path);
+
+	printf("Number of labels: %d\n", number_of_labels);
+	for(int i=0;i<number_of_labels;i++){
+		// printf("Label: %s\n", labels_ptr[i]);
+		push_object(labels_ptr[i], path, 1);
+		filler(buf, labels_ptr[i], NULL, 0, 0);
+	}
+
+	printf("Number of emails: %d\n", number_of_emails);
+	for(int i=0;i<number_of_emails;i++){
+		push_object(email_subjects[i], path, 0);
+		filler(buf, email_subjects[i], NULL, 0, 0);
+	}
+
+	filler(buf, ".", NULL, 0, 0);
+	filler(buf, "..", NULL, 0, 0);
+
+
+	return 0;
+}
+
+
+
+static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
+	(void) fi;
+	// if(0==strcmp(path, "/.git") || 0==strcmp(path, "/.rbenv-version") || 0==strcmp(path, "/Gemfile") || 0==strcmp(path, "/.rvm") || 0==strcmp(path, "/__rvm_cleanup_download") || 0==strcmp(path, "/HEAD") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.git") || 0==strcmp(path, "/.rvmrc") || 0==strcmp(path, "/.versions.conf") || 0==strcmp(path, "/.ruby-version") || 0==strcmp(path, "/.rbfu-version")){
+	// 	return -ENOENT;
+	// }
+	memset(stbuf, 0, sizeof(struct stat));
+
+	stbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
+	stbuf->st_gid = getgid(); // The group of the file/directory is the same as the group of the user who mounted the filesystem
+	stbuf->st_atime = time( NULL ); // The last "a"ccess of the file/directory is right now
+	stbuf->st_mtime = time( NULL ); // The last "m"odification of the file/directory is right now
+
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
+		return 0;
+	}
+	printf("\033[1;31m");
+	printf("Debug: log mail_fs_getattr: %s\n", path);
+	printf("\033[0m");
+
+
+	char root_dirname[10000];
+	char objectname[10000];
+
+	split_path_to_components(root_dirname, objectname, path);
+	printf("Debug: root_dirname: %s\n", root_dirname);
+	printf("Debug: objectname: %s\n", objectname);
+
+	int res = 0;
+
+	int search_res=search_hashmap(root_dirname, objectname);
+	printf("Debug: SEARCH RES: %d\n\n", search_res);
+
+	if(search_res==1){
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
+	}else if(search_res==2){
+		stbuf->st_mode = S_IFREG | 0444;
+		stbuf->st_nlink = 1;
+		stbuf->st_size = 1000;
+	}else{
+		res=-ENONET;
+	}
+
+	return res;
+}
+
+
+// static int mail_fs_destroy(){
+
+//     // TODO: Always cleanup
+//     // In docs it's mentioned to "re-using handles is a key to good performance with libcurl"
+//     // so we shall clean it in the end
+//     // curl_easy_cleanup(curl);
+// }
+
+
+static const struct fuse_operations mail_fs_operations = {
+    .init           = mail_fs_init,
+    .getattr        = mail_fs_getattr,
+    .readdir        = mail_fs_readdir,
+    // .destroy 				= mail_fs_destroy
+    // .open           = mail_fs_open,
+    // .read           = mail_fs_read,
+};
+
+
+
+int main(int argc, char* argv[]){
+		// if(argc!=6){
+		// 	show_help();
+		// 	return 1;
+		// }
+
+    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+		config=(mailbox_config*)malloc(sizeof(mailbox_config));
+
+		if (fuse_opt_parse(&args, config, option_spec, NULL) == -1)
+			return 1;
+
+
+		// config->ip_address=strdup(argv[2]);
+		// config->port=strdup(argv[3]);
+		// config->email=strdup(argv[4]);
+		// config->password=strdup(argv[5]);
+
+    int ret;
+    ret = fuse_main(args.argc, args.argv, &mail_fs_operations, NULL);
+		fuse_opt_free_args(&args);
+
+    // TODO: deallocating memory
+		free(config);
+
+	return ret;
+}
+

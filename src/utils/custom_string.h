@@ -1,0 +1,18 @@
+#ifndef CUSTOM_STRING_H
+#define CUSTOM_STRING_H
+#include <stdlib.h>
+#include <stdio.h>
+
+
+void init_custom_string(struct custom_string *s) {
+  s->len = 0;
+  s->ptr = malloc(s->len+1);
+  if (s->ptr == NULL) {
+    fprintf(stderr, "malloc() failed\n");
+    exit(EXIT_FAILURE);
+  }
+  s->ptr[0] = '\0';
+}
+
+
+#endif
