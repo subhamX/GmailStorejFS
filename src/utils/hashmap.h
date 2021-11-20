@@ -64,7 +64,7 @@ void push_object(const char* path, int object_type){
 void invalidate_object_if_exist(const char* path){
 	printf("Trying to invalidate: %s\n", path);
 	for(int i=0;i<NUMBER_OF_CACHED_NODES;i++){
-		// printf("%s", container[i].path);
+		if(container[i].is_valid) printf("%s", container[i].path);
 		if(container[i].is_valid && strcmp(path,container[i].path)==0){
 			container[i].is_valid=0;
 			printf("INVALIDATE SUCCESSFUL\n");

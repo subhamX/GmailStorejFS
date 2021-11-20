@@ -19,8 +19,8 @@
 // }
 
 char* get_content_from_response_headers(custom_string* s){
-	char* body=(char*)malloc(sizeof(char)*10000);
-	memset(body,0,10000);
+	char* body=(char*)malloc(sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
+	memset(body,0,sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
 	decode_quoted_printable(s);
 
 	printf("RAW CONTENT: %s\n", s->ptr);

@@ -162,7 +162,7 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	}else if(object_type==2){
 		stbuf->st_mode = S_IFREG | 0777;
 		stbuf->st_nlink = 1;
-		stbuf->st_size = 1000;
+		stbuf->st_size = 1000000;
 	}else{
 		res=-ENOENT;
 	}
@@ -200,6 +200,7 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 		} else{
 			size = 0;
 		}
+		free(response);
 	}
 	return size;
 }
@@ -234,7 +235,7 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 		delete_email_by_id_and_folder(data->curl, msg_id, root_dirname);
 	}
 	// create new
-	int res=create_new_mail(data->curl, root_dirname, objectname, buf);
+	create_new_mail(data->curl, root_dirname, objectname, buf);
 
 	return size;
 }
@@ -271,6 +272,8 @@ static int mail_fs_mkdir(const char * path, mode_t mode){
 
 static int mail_fs_mknod(const char *path, mode_t mode, dev_t rdev){
 	// create new file
+
+	printf("debug: mail_fs_mknod: %s\n", path);
 	private_data_node* data=PVT_DATA;
 	char root_dirname[10000];
 	char objectname[10000];
@@ -287,14 +290,98 @@ static int mail_fs_rmdir(const char * path){
 	private_data_node* data=PVT_DATA;
 	int res=delete_label(data->curl, path);
 	if(res) return -ENONET; // network error
+	// invalidate path in cache
+	invalidate_object_if_exist(path);
 	return 0;
 }
 
 
 
+
+
+static int mail_fs_rename(const char * from_path, const char * to_path, unsigned int flags){
+	printf("\033[1;31m");
+	printf("Debug: log mail_fs_rename: [%s] [%s]\n", from_path, to_path);
+	printf("\033[0m");
+
+	private_data_node* data=PVT_DATA;
+
+	char to_root_dirname[10000];
+	char to_objectname[10000];
+
+	split_path_to_components(to_root_dirname, to_objectname, to_path);
+	printf("Debug: to_root_dirname: %s\n", to_root_dirname);
+	printf("Debug: to_objectname: %s\n", to_objectname);
+
+	char from_root_dirname[10000];
+	char from_objectname[10000];
+
+	split_path_to_components(from_root_dirname, from_objectname, from_path);
+	printf("Debug: from_root_dirname: %s\n", from_root_dirname);
+	printf("Debug: from_objectname: %s\n", from_objectname);
+
+	int from_object_type=fetch_object_type_by_dirname_and_objectname(data->curl,from_root_dirname,from_objectname,data->base_full_url);
+	int to_object_type=fetch_object_type_by_dirname_and_objectname(data->curl, to_root_dirname,to_objectname,data->base_full_url);
+
+	printf("TYPE: %d %d\n", from_object_type, to_object_type);
+
+	if(from_object_type==2 && to_object_type==1){
+		// file to dir
+		// add label
+		exit(1);
+		return 0;
+	}else if(from_object_type==2 && (to_object_type==0 || to_object_type==2)) {
+		// object_type==2; file to file: overwrite contents
+		// object_type==0; file to none: rename the subject
+		int msg_id;
+		if(to_object_type==2){
+			msg_id=fetch_msgid_by_subject_and_label(data->curl, to_objectname, to_root_dirname);
+			if(msg_id!=-1){
+				// if [to] msg exist; delete it
+				delete_email_by_id_and_folder(data->curl, msg_id, to_root_dirname);
+			}
+		}
+		printf("OK\n");
+
+		msg_id=fetch_msgid_by_subject_and_label(data->curl, from_objectname, from_root_dirname);
+		printf("msg_id: %d\n", msg_id);
+		if(msg_id==-1){
+			return -ENOENT;
+		}
+		printf("Starting relabel %d\n", msg_id);
+		printf("End relabel %d\n", msg_id);
+		int res=relabel_an_email(data->curl, to_root_dirname, from_root_dirname, msg_id);
+
+		// invalidate cache
+		invalidate_object_if_exist(to_path);
+		invalidate_object_if_exist(from_path);
+
+		if(res) return -ENONET;
+		return 0;
+	}else if(from_object_type==1 && to_object_type==0){
+		// dir to none
+		// rename the label
+		return -ENONET;
+	}else if(from_object_type==1 && to_object_type==1) {
+		// dir to dir: not allowed
+		return -ENONET;
+	}else if(from_object_type==1 && to_object_type==2) {
+		// dir to file: not allowed
+		return -ENONET;
+	}else if(from_object_type==0){
+		// source file/dir doesn't exists: not allowed
+		return -ENONET;
+	}
+
+	return -ENONET;
+}
+
+
+
+
+
 static const struct fuse_operations mail_fs_operations = {
     // .destroy 				= mail_fs_destroy
-		// .rename					= mail_fs_rename,
     .init           = mail_fs_init,
     .getattr        = mail_fs_getattr,
     .readdir        = mail_fs_readdir,
@@ -304,6 +391,7 @@ static const struct fuse_operations mail_fs_operations = {
 		.rmdir					= mail_fs_rmdir,
 		.write					= mail_fs_write,
 		.mknod					= mail_fs_mknod,
+		.rename					= mail_fs_rename,
 };
 
 

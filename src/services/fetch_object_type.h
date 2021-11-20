@@ -23,7 +23,7 @@ int fetch_object_type_by_dirname_and_objectname(CURL* curl, const char* root_dir
 	char full_object_path[10000];
 	memset(full_object_path,0,10000);
 	strcat(full_object_path,root_dirname);
-	strcat(full_object_path,"/");
+	if(strcmp(root_dirname,"/")) strcat(full_object_path,"/");
 	strcat(full_object_path,objectname);
 	int object_type=search_hashmap(full_object_path);
 	if(object_type!=-1){

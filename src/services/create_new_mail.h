@@ -64,8 +64,8 @@ int create_new_mail(CURL* curl, const char* folder_name, const char* subject, co
 	long infilesize;
 	struct upload_data_node upload_ctx;
 	upload_ctx.bytes_read=0;
-	upload_ctx.payload=(char*)malloc(sizeof(char)*MAX_LENGTH_OF_FILE_NAME);
-	memset(upload_ctx.payload, 0, MAX_LENGTH_OF_FILE_NAME);
+	upload_ctx.payload=(char*)malloc(sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
+	memset(upload_ctx.payload, 0, MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
 	strcat(upload_ctx.payload, "To: ");
 	strcat(upload_ctx.payload, random_msg_id);
 	strcat(upload_ctx.payload, "\r\n");
@@ -78,7 +78,7 @@ int create_new_mail(CURL* curl, const char* folder_name, const char* subject, co
 
 	curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source);
 	curl_easy_setopt(curl, CURLOPT_READDATA, &upload_ctx);
- 	curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+ 	curl_easy_setopt(curl, CURLOPT_UPLOAD, 1000000L);
 
 	infilesize = strlen(upload_ctx.payload);
 	curl_easy_setopt(curl, CURLOPT_INFILESIZE, infilesize);
