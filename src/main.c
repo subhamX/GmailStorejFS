@@ -13,10 +13,11 @@
 #include <unistd.h>
 #include "mail/mail_client.h"
 #include "utils/definitions.h"
-#include "utils/hashmap.h"
 #include "services/curl_handle_init.h"
 #include "services/fetch_all_labels.h"
 #include "services/fetch_all_emails_by_label.h"
+#include "services/fetch_email_content_by_id.h"
+#include "services/fetch_object_type.h"
 #include "utils/string_helpers.h"
 
 // if I am at "x" then I shall keep track of all
@@ -51,6 +52,8 @@ static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
     // ! Ensure that the log file isn't in the mount folder
     (void) conn;
     // cfg->kernel_cache = 1;
+		// check
+		cfg->attr_timeout=100000;
 
 		private_data_node* private_data=(private_data_node*)malloc(sizeof(private_data_node));
 		private_data->config=config;
@@ -83,7 +86,7 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	if (strcmp(path, "/")==0){
 		// lookup for both dirs and files
 		curl_handle_reset(data->curl, data->config);
-		fetch_all_labels(labels_ptr, &number_of_labels, data);
+		fetch_all_labels(data->curl, labels_ptr, &number_of_labels, data->base_full_url);
 	}
 
 	// fetch all emails
@@ -91,18 +94,13 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	int number_of_emails=0;
 	fetch_all_emails_by_label(data->curl, path, email_subjects, &number_of_emails);
 
-	push_root_dir(path);
-
 	printf("Number of labels: %d\n", number_of_labels);
 	for(int i=0;i<number_of_labels;i++){
-		// printf("Label: %s\n", labels_ptr[i]);
-		push_object(labels_ptr[i], path, 1);
 		filler(buf, labels_ptr[i], NULL, 0, 0);
 	}
 
 	printf("Number of emails: %d\n", number_of_emails);
 	for(int i=0;i<number_of_emails;i++){
-		push_object(email_subjects[i], path, 0);
 		filler(buf, email_subjects[i], NULL, 0, 0);
 	}
 
@@ -113,6 +111,16 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	return 0;
 }
 
+
+static int mail_fs_open(const char *path, struct fuse_file_info *fi){
+	// TODO: shall I check ?
+	printf("\033[0;35m");
+	printf("Debug: log mail_fs_open: %s\n", path);
+	printf("\033[0m");
+	if ((fi->flags & O_ACCMODE) != O_RDONLY)
+		return -EACCES;
+	return 0;
+}
 
 
 static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
@@ -135,32 +143,59 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	printf("\033[1;31m");
 	printf("Debug: log mail_fs_getattr: %s\n", path);
 	printf("\033[0m");
-
-
-	char root_dirname[10000];
-	char objectname[10000];
-
-	split_path_to_components(root_dirname, objectname, path);
-	printf("Debug: root_dirname: %s\n", root_dirname);
-	printf("Debug: objectname: %s\n", objectname);
+	private_data_node* data=PVT_DATA;
 
 	int res = 0;
 
-	int search_res=search_hashmap(root_dirname, objectname);
-	printf("Debug: SEARCH RES: %d\n\n", search_res);
+	int object_type=fetch_object_type(data->curl,path,data->base_full_url);
+	printf("Debug: FETCH_OBJECT_TYPE: %d\n\n", object_type);
 
-	if(search_res==1){
+	if(object_type==1){
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 2;
-	}else if(search_res==2){
+	}else if(object_type==2){
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = 1000;
 	}else{
-		res=-ENONET;
+		res=-ENOENT;
 	}
 
 	return res;
+}
+
+
+static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
+	size_t len;
+	(void) fi;
+	printf("\033[1;31m");
+	printf("Debug: log mail_fs_read: %s\n", path);
+	printf("\033[0m");
+
+	// getattr will ensure that here we reach only if there exist a file
+	char root_dirname[10000];
+	char objectname[10000];
+	split_path_to_components(root_dirname, objectname, path);
+	printf("Debug: root_dirname: %s\n", root_dirname);
+	printf("Debug: objectname: %s\n", objectname);
+
+	private_data_node* data=PVT_DATA;
+	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
+	printf("Msg Id: %d\n", msg_id);
+	if(msg_id==-1){
+		// msg doesn't exist
+		return -ENOENT;
+	}else{
+		char* response= fetch_email_content_by_id(data->curl, msg_id);
+		len=strlen(response);
+		if (offset < len) {
+			if (offset + size > len) size = len - offset;
+			memcpy(buf, response + offset, size);
+		} else{
+			size = 0;
+		}
+	}
+	return size;
 }
 
 
@@ -178,8 +213,8 @@ static const struct fuse_operations mail_fs_operations = {
     .getattr        = mail_fs_getattr,
     .readdir        = mail_fs_readdir,
     // .destroy 				= mail_fs_destroy
-    // .open           = mail_fs_open,
-    // .read           = mail_fs_read,
+    .open           = mail_fs_open,
+    .read           = mail_fs_read,
 };
 
 

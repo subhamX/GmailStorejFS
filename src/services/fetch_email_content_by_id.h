@@ -15,6 +15,8 @@ char* get_content_from_response_headers(custom_string* s){
 
 	decode_quoted_printable(s);
 
+	printf("RAW CONTENT: %s\n", s->ptr);
+
 	char* sep="FETCH (BODY[TEXT] {";
 	int sep_len=strlen(sep);
 
@@ -84,26 +86,26 @@ char* fetch_email_content_by_id(CURL* curl, int id){
 	strcat(tmp, "FETCH ");
 	strcat(tmp, id_str);
 	strcat(tmp, " BODY.PEEK[TEXT]");
-
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, tmp);
-
 
 	custom_string s;
 	init_custom_string(&s);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&s);
-
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
-
 
   /* Perform the fetch */
   int res = curl_easy_perform(curl);
+	// reset
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, NULL);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, NULL);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+
   if(res != CURLE_OK){
     printf("Err: Unable to fetch the email subject; msg: %s\n", curl_easy_strerror(res));
     return NULL;
   }
-
-	// printf("----> %s\n", s.ptr);
 
 	// parse
 	return get_content_from_response_headers(&s);

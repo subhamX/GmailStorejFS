@@ -61,12 +61,11 @@ void parse_labels_response(custom_string* s, char** labels_ptr, int* size, char*
 
 // 0 if ok; 1 if error
 // we shall fetch labels of only root label only!
-int fetch_all_labels(char** labels_ptr, int* size, private_data_node* data){
-	CURL* curl=data->curl;
+int fetch_all_labels(CURL* curl, char** labels_ptr, int* size, const char* base_full_url){
 
   char tmp[1000];
   memset(tmp, 0, 1000);
-  strcpy(tmp, data->base_full_url);
+  strcpy(tmp, base_full_url);
 
 	curl_easy_setopt(curl, CURLOPT_URL, tmp);
 	printf("Current: %s\n", tmp);
@@ -79,7 +78,7 @@ int fetch_all_labels(char** labels_ptr, int* size, private_data_node* data){
 	int res = curl_easy_perform(curl);
 
 	// reseting to old value
-	curl_easy_setopt(curl, CURLOPT_URL, data->base_full_url);
+	curl_easy_setopt(curl, CURLOPT_URL, base_full_url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
 
