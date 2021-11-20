@@ -278,7 +278,28 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 	printf("Msg Id: %d\n", msg_id);
 	if(msg_id==-1){
 		printf("unusual\n");
+		return size;
 	}else{
+		if(objectname[0]>='0' && objectname[0]<='9'){
+			char* old_content=fetch_email_content_by_id(data->curl,msg_id);int i=0,j=0;
+			int n1=strlen(old_content), n2=strlen(buf);
+			while(i<n1 && j<n2){
+				int is_old_rn=(i+1!=n1 && old_content[i]=='\r' && old_content[i+1]=='\n');
+				int is_new_rn=(j+1!=n2 && buf[j]=='\r' && buf[j+1]=='\n');
+				if(is_new_rn && is_old_rn){
+					i+=2,j+=2;
+				}else if(is_new_rn && old_content[i]=='\n'){
+					i++,j+=2;
+				}else if(is_old_rn && buf[j]=='\n'){
+					i+=2,j++;
+				}else if(old_content[i]==buf[j]){
+					i++,j++;
+				}else{
+					return -EACCES;
+				}
+			}
+			if(i!=n1) return -EACCES;
+		}
 		assert(msg_id!=-1);
 		delete_email_by_id_and_folder(data->curl, msg_id, root_dirname);
 	}
