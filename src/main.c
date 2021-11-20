@@ -25,6 +25,7 @@
 #include "services/delete_email_by_id_and_folder.h"
 #include "services/create_new_mail.h"
 #include "utils/hashmap.h"
+#include "services/change_label.h"
 
 // if I am at "x" then I shall keep track of all
 
@@ -328,12 +329,21 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 	if(from_object_type==2 && to_object_type==1){
 		// file to dir
 		// add label
+		// won't happen every; libfuse handles it internally
 		exit(1);
 		return 0;
 	}else if(from_object_type==2 && (to_object_type==0 || to_object_type==2)) {
 		// object_type==2; file to file: overwrite contents
 		// object_type==0; file to none: rename the subject
 		int msg_id;
+		msg_id=fetch_msgid_by_subject_and_label(data->curl, from_objectname, from_root_dirname);
+		char* content=fetch_email_content_by_id(data->curl,msg_id);
+
+		// delete from email
+		delete_email_by_id_and_folder(data->curl, msg_id, from_root_dirname);
+
+
+		// delete the "to" file
 		if(to_object_type==2){
 			msg_id=fetch_msgid_by_subject_and_label(data->curl, to_objectname, to_root_dirname);
 			if(msg_id!=-1){
@@ -341,35 +351,36 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 				delete_email_by_id_and_folder(data->curl, msg_id, to_root_dirname);
 			}
 		}
-		printf("OK\n");
 
-		msg_id=fetch_msgid_by_subject_and_label(data->curl, from_objectname, from_root_dirname);
-		printf("msg_id: %d\n", msg_id);
-		if(msg_id==-1){
-			return -ENOENT;
-		}
-		printf("Starting relabel %d\n", msg_id);
-		printf("End relabel %d\n", msg_id);
-		int res=relabel_an_email(data->curl, to_root_dirname, from_root_dirname, msg_id);
+		int res=create_new_mail(data->curl, to_root_dirname, to_objectname, content);
+		free(content);
 
 		// invalidate cache
 		invalidate_object_if_exist(to_path);
 		invalidate_object_if_exist(from_path);
-
 		if(res) return -ENONET;
 		return 0;
 	}else if(from_object_type==1 && to_object_type==0){
+		// dest rootdir name should be /
 		// dir to none
+		if(strcmp(to_root_dirname, "/")) return -EACCES;
+
 		// rename the label
-		return -ENONET;
+		if(change_label(data->curl, from_path, to_path)) return -ENONET;
+		// invalidate cache
+		invalidate_object_if_exist(to_path);
+		invalidate_object_if_exist(from_path);
+		return 0;
 	}else if(from_object_type==1 && to_object_type==1) {
 		// dir to dir: not allowed
-		return -ENONET;
+		return -EACCES;
 	}else if(from_object_type==1 && to_object_type==2) {
 		// dir to file: not allowed
+		// handled by fuse
 		return -ENONET;
 	}else if(from_object_type==0){
 		// source file/dir doesn't exists: not allowed
+		// libfuse handles it
 		return -ENONET;
 	}
 

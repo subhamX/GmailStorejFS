@@ -23,7 +23,7 @@ char* get_content_from_response_headers(custom_string* s){
 	memset(body,0,sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
 	decode_quoted_printable(s);
 
-	printf("RAW CONTENT: %s\n", s->ptr);
+	// printf("RAW CONTENT: %s\n", s->ptr);
 	// if(!check_alter_parser()) return body;
 
 
