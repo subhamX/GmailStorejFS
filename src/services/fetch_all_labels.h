@@ -16,15 +16,15 @@ char* fetch_label(char* str, char* current_full_path){
 	int i=1;
 	while(str[i]!='\0' && !(str[i-1]=='"' && str[i]=='/' && str[i+1]=='"')) i++;
 
-	assert(str[i+2]==' ');
-	assert(str[i+3]=='"');
+	if(str[i+2]!=' ') return NULL;
+	if(str[i+3]!='"') return NULL;
 	i+=4;
 	int j=0;
 	while(current_full_path[j]!='\0' && str[i]==current_full_path[j]){
 		i++;
 		j++;
 	}
-	assert(current_full_path[j]=='\0');
+	if(current_full_path[j]!='\0') return NULL;
 
 	// writing to label
 	j=0;
@@ -42,7 +42,7 @@ void parse_labels_response(custom_string* s, char** labels_ptr, int* size, char*
 	// printf("TOTAL:: %s\n\n", s->ptr);
 	int indx=0;
 	int first=1;
-	for(int i=0;i+2<s->len;i++){
+	for(int i=0;i<s->len;i++){
 		if(first){
 			first=(s->ptr[i]!='\n');
 		}else if(s->ptr[i]=='\n'){
