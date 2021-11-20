@@ -11,7 +11,7 @@
 
 
 // returns 1 if unsuccessful; 0 if successful
-int delete_label_from_email(CURL* curl, int id, char* folder_name){
+int delete_label_from_email(CURL* curl, int id, const char* folder_name){
   if(!curl) return 1;
 
   char tmp[1000];
@@ -27,11 +27,15 @@ int delete_label_from_email(CURL* curl, int id, char* folder_name){
   strcat(tmp, BASE_MAILBOX_LABEL);
   strcat(tmp, folder_name);
 
-	// printf("DEBUG: %s\n", tmp);
+	printf("DEBUG: %s\n", tmp);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, tmp);
 
   /* Perform the fetch */
   int res = curl_easy_perform(curl);
+	printf("DONE %s\n", tmp);
+
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
   if(res != CURLE_OK){
     printf("Err: Unable to remove label; failed: %s\n", curl_easy_strerror(res));
     return 1;

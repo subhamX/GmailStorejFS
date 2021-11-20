@@ -35,12 +35,16 @@ char* get_subject_from_response_headers(custom_string* s){
 	assert(s->ptr[i+1]=='u');
 
 	i+=9;
-
+	int end=s->len-3;
+	// char* ending_chars="Ok Success";
+	assert(s->ptr[end]=='s');
+	end-=10;
+	while(s->ptr[end]!=')') end--;
 
 	char* subject=(char*)malloc(sizeof(char)*10000);
 	memset(subject,0,10000);
 	int k=0;
-	while(s->ptr[i]!='\0'){
+	while(i<end && s->ptr[i]!='\0'){
 		if(s->ptr[i]=='\r' && s->ptr[i+1]=='\n'){
 			i+=2;
 			continue;

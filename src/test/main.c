@@ -17,16 +17,19 @@
 
 
 int main(){
-    char* email="EMAIL";
-    char* password="PWD";
-
     CURL *curl;
-    curl_handle_init(&curl, email, password);
+		mailbox_config config={
+			.email="CHANGE",
+			.password="CHANGE",
+			.ip_address="imaps://imap.gmail.com",
+			.port="993"
+		};
+    curl_handle_init(&curl, &config);
     if(!curl){
         printf("Unable to get a curl handle.. terminating..\n");
         return 1;
     }
-    // curl_easy_setopt(curl, CURLOPT_VERBOSE, 100L);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 100L);
 
     // create new label
     // create_new_label(curl, "/bar");
@@ -72,11 +75,11 @@ int main(){
 		// create_new_mail(curl, "/foo", "health is needed");
 
 		// add labels to email
-		// add_label_to_email(curl, 31, "/haha");
+		// add_label_to_email(curl, 1, "/haha");
 
 
 		// relabel an email
-		// relabel_an_email(curl, "/hello", "/", 3);
+		// relabel_an_email(curl, "/yubn", "/haha", 1);
 
 		// delete and email
 		// relabel_an_email(curl, "/DELETED", "/", 3);
@@ -90,21 +93,24 @@ int main(){
 
 
 		// fetch msg content
-		// int msg_id=fetch_msgid_by_subject_and_label(curl, "water is needed", "/foo");
-		// printf("Msg Id: %d\n", msg_id);
-		// assert(msg_id!=-1);
-		// char* response= fetch_email_content_by_id(curl, msg_id);
+		// int msg_id=fetch_msgid_by_subject_and_label(curl, "acac", "/haha");
+		int msg_id=fetch_msgid_by_subject_and_label(curl, "new_mail", "/haha");
+		// int msg_id=fetch_msgid_by_subject_and_label(curl, "helloa", "/");
+		// int msg_id=fetch_msgid_by_subject_and_label(curl, "jhasdjh", "/");
+		printf("Msg Id: %d\n", msg_id);
+		assert(msg_id!=-1);
+		char* response= fetch_email_content_by_id(curl, msg_id);
 
-		// printf("%s]\n\n", response);
-		// free(response);
+		printf("Content: [%s]\n\n", response);
+		free(response);
 
 
 
 		// delete msg
-		// int msg_id=fetch_msgid_by_subject_and_label(curl, "water-is-needed", "");
+		// int msg_id=fetch_msgid_by_subject_and_label(curl, "bar", "/haha");
 		// printf("Msg Id: %d\n", msg_id);
 		// assert(msg_id!=-1);
-		// delete_email_by_id_and_folder(curl, msg_id, "");
+		// delete_email_by_id_and_folder(curl, msg_id, "/haha");
 
 		// update msg content
 

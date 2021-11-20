@@ -25,6 +25,8 @@ int delete_email_by_id_and_folder(CURL* curl, int id, char* current_folder){
   memset(id_str, 0, 1000);
 	int_to_string(id_str, 1000, id);
 
+	printf("Yayayayaya\n");
+
   int res = delete_label_from_email(curl, id, current_folder);
   if(res != CURLE_OK){
 		printf("Err: Remove label unsuccessful\n");
@@ -44,6 +46,10 @@ int delete_email_by_id_and_folder(CURL* curl, int id, char* current_folder){
 
   /* Perform the fetch */
   res = curl_easy_perform(curl);
+
+	// reset
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
   if(res != CURLE_OK){
     printf("Err: Unable to add deleted label; failed: %s\n", curl_easy_strerror(res));
     return 1;
@@ -52,6 +58,8 @@ int delete_email_by_id_and_folder(CURL* curl, int id, char* current_folder){
 
 	  res = curl_easy_perform(curl);
 
+		// reset
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
    /* Check for errors */
 		if(res != CURLE_OK){
 			printf("Err: Unable to EXPUNGE; failed: %s\n", curl_easy_strerror(res));

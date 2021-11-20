@@ -10,12 +10,22 @@
 #include "../utils/decode.h"
 
 
+// return 0 if parsing was successful with this alter parsing logic
+int check_alter_parser(custom_string*s, int start_indx){
+	char* sep="Content-Type: text/plain; charset=\"UTF-8\"";
+	int sep_len=strlen(sep);
+
+	return 0;
+}
 
 char* get_content_from_response_headers(custom_string* s){
-
+	char* body=(char*)malloc(sizeof(char)*10000);
+	memset(body,0,10000);
 	decode_quoted_printable(s);
 
 	printf("RAW CONTENT: %s\n", s->ptr);
+	// if(!check_alter_parser()) return body;
+
 
 	char* sep="FETCH (BODY[TEXT] {";
 	int sep_len=strlen(sep);
@@ -39,16 +49,19 @@ char* get_content_from_response_headers(custom_string* s){
 	i++;
 	// it's body now.
 
-	char* body=(char*)malloc(sizeof(char)*10000);
-	memset(body,0,10000);
+	int end=s->len-3;
+	// char* ending_chars="Ok Success";
+	assert(s->ptr[end]=='s');
+	end-=10;
+	while(s->ptr[end]!=')') end--;
 	int k=0;
-	while(s->ptr[i]!='\0'){
+	while(i<end && s->ptr[i]!='\0'){
 		// if(s->ptr[i]=='\r' && s->ptr[i+1]=='\n'){
 		// 	i+=2;
 		// 	continue;
 		// }
 
-		// printf("HIT [%c] [%c] [%d] [%d]\n", s->ptr[i], s->ptr[i+1], s->ptr[i]=='\r', s->ptr[i+1]=='\r');
+		printf("HIT [%c] [%c] [%d] [%d]\n", s->ptr[i], s->ptr[i+1], s->ptr[i]=='\r', s->ptr[i+1]=='\r');
 
 		if(s->ptr[i]==')' && s->ptr[i+1]=='\r' && s->ptr[i+2]=='\n' && s->ptr[i+3]=='A' && s->ptr[i+4]=='0' && s->ptr[i+5]=='0'){
 			break;

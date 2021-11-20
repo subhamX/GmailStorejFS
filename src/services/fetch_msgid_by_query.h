@@ -7,6 +7,7 @@
 #include <assert.h>
 #include "../utils/definitions.h"
 #include "../utils/string_helpers.h"
+#include "curl_handle_init.h"
 
 
 
@@ -43,12 +44,10 @@ int fetch_msgid_by_query(CURL* curl, char* query, int* indices, int* len){
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&s);
 
   /* Perform the fetch */
-  int res = curl_easy_perform(curl);
 
 	// reset
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
-	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+  int res = curl_easy_perform(curl);
+	custom_curl_handle_reset(&curl);
 
   if(res != CURLE_OK){
     printf("Err: Unable to get the msgid; errmsg: %s\n", curl_easy_strerror(res));
@@ -56,14 +55,14 @@ int fetch_msgid_by_query(CURL* curl, char* query, int* indices, int* len){
   }
 
 	parse_email_indices(&s, indices, len);
-
+	free(s.ptr);
 	return 0;
 }
 
 
 // will be unique; so we shall return the id
 // if err then -1
-int fetch_msgid_by_subject_and_label(CURL* curl, char* subject, char* label){
+int fetch_msgid_by_subject_and_label(CURL* curl, const char* subject, const char* label){
 	// fetch the id of the mail
 	char query[10000];
 	memset(query,0,10000);
@@ -73,6 +72,7 @@ int fetch_msgid_by_subject_and_label(CURL* curl, char* subject, char* label){
   strcat(query, BASE_MAILBOX_LABEL);
 	strcat(query, label);
 	strcat(query, "\"");
+
 	int indices[MAX_FILES_IN_A_DIR];
 	int number_of_files=0;
 	int res=fetch_msgid_by_query(curl, query, indices, &number_of_files);

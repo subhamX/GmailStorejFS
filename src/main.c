@@ -21,6 +21,9 @@
 #include "utils/string_helpers.h"
 #include "services/create_new_label.h"
 #include "services/delete_label.h"
+#include "services/relabel_an_email.h"
+#include "services/delete_email_by_id_and_folder.h"
+#include "services/create_new_mail.h"
 
 // if I am at "x" then I shall keep track of all
 
@@ -87,7 +90,6 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 
 	if (strcmp(path, "/")==0){
 		// lookup for both dirs and files
-		curl_handle_reset(data->curl, data->config);
 		fetch_all_labels(data->curl, labels_ptr, &number_of_labels, data->base_full_url);
 	}
 
@@ -119,8 +121,8 @@ static int mail_fs_open(const char *path, struct fuse_file_info *fi){
 	printf("\033[0;35m");
 	printf("Debug: log mail_fs_open: %s\n", path);
 	printf("\033[0m");
-	if ((fi->flags & O_ACCMODE) != O_RDONLY)
-		return -EACCES;
+	// if ((fi->flags & O_ACCMODE) != O_RDONLY)
+	// 	return -EACCES;
 	return 0;
 }
 
@@ -139,7 +141,7 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	stbuf->st_mtime = time( NULL ); // The last "m"odification of the file/directory is right now
 
 	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_mode = S_IFDIR | 0777;
 		stbuf->st_nlink = 2;
 		return 0;
 	}
@@ -154,10 +156,10 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	printf("Debug: FETCH_OBJECT_TYPE: %d\n\n", object_type);
 
 	if(object_type==1){
-		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_mode = S_IFDIR | 0777;
 		stbuf->st_nlink = 2;
 	}else if(object_type==2){
-		stbuf->st_mode = S_IFREG | 0444;
+		stbuf->st_mode = S_IFREG | 0777;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = 1000;
 	}else{
@@ -209,6 +211,32 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 //     // so we shall clean it in the end
 //     // curl_easy_cleanup(curl);
 // }
+static int mail_fs_write(const char * path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi){
+
+	printf("PATH: %s\n", path);
+	printf("NEW CONTENT: %s\n", buf);
+	private_data_node* data=PVT_DATA;
+
+	// save the content to server
+	// delete old
+	char root_dirname[10000];
+	char objectname[10000];
+	split_path_to_components(root_dirname, objectname, path);
+	printf("Debug: root_dirname: %s\n", root_dirname);
+	printf("Debug: objectname: %s\n", objectname);
+	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
+	printf("Msg Id: %d\n", msg_id);
+	if(msg_id==-1){
+		printf("unusual\n");
+	}else{
+		assert(msg_id!=-1);
+		delete_email_by_id_and_folder(data->curl, msg_id, root_dirname);
+	}
+	// create new
+	int res=create_new_mail(data->curl, root_dirname, objectname, buf);
+
+	return size;
+}
 
 
 // create a new folder
@@ -236,6 +264,16 @@ static int mail_fs_mkdir(const char * path, mode_t mode){
 	return 0;
 }
 
+static int mail_fs_mknod(const char *path, mode_t mode, dev_t rdev){
+	// create new file
+	private_data_node* data=PVT_DATA;
+	char root_dirname[10000];
+	char objectname[10000];
+	split_path_to_components(root_dirname, objectname, path);
+	create_new_mail(data->curl, root_dirname, objectname, "");
+	return 0;
+}
+
 
 static int mail_fs_rmdir(const char * path){
 	private_data_node* data=PVT_DATA;
@@ -245,15 +283,19 @@ static int mail_fs_rmdir(const char * path){
 }
 
 
+
 static const struct fuse_operations mail_fs_operations = {
+    // .destroy 				= mail_fs_destroy
+		// .rename					= mail_fs_rename,
     .init           = mail_fs_init,
     .getattr        = mail_fs_getattr,
     .readdir        = mail_fs_readdir,
-    // .destroy 				= mail_fs_destroy
     .open           = mail_fs_open,
     .read           = mail_fs_read,
 		.mkdir					= mail_fs_mkdir,
 		.rmdir					= mail_fs_rmdir,
+		.write					= mail_fs_write,
+		.mknod					= mail_fs_mknod,
 };
 
 

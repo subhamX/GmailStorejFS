@@ -52,7 +52,7 @@ static size_t payload_source(char *ptr, size_t size, size_t nmemb, void *userp){
  * @param subject: subject text which we shall put in the email
  * @return int: returns 1 if unsuccessful; 0 if successful
  */
-int create_new_mail(CURL* curl, char* folder_name, char* subject){
+int create_new_mail(CURL* curl, const char* folder_name, const char* subject, const char* content){
   if(!curl) return 1;
 
 
@@ -72,8 +72,9 @@ int create_new_mail(CURL* curl, char* folder_name, char* subject){
 	// strcat(upload_ctx.payload, "To: hellosubham\r\n");
 	strcat(upload_ctx.payload, "Subject: ");
 	strcat(upload_ctx.payload, subject);
-	// strcat(upload_ctx.payload, "IMAP example message\r\n");
 	/* empty line to divide headers from body, see RFC5322 */
+	strcat(upload_ctx.payload, "\r\n");
+	if(content) strcat(upload_ctx.payload, content);
 
 	curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source);
 	curl_easy_setopt(curl, CURLOPT_READDATA, &upload_ctx);
@@ -117,6 +118,8 @@ int create_new_mail(CURL* curl, char* folder_name, char* subject){
 
 	// add label to mail
 	add_label_to_email(curl, indices[0], folder_name);
+
+	return 0;
 
 }
 
