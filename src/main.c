@@ -390,6 +390,25 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 
 
 
+static int mail_fs_unlink(const char * path){
+	private_data_node* data=PVT_DATA;
+	char root_dirname[10000];
+	char objectname[10000];
+	split_path_to_components(root_dirname, objectname, path);
+
+	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
+	if(msg_id==-1){
+		return -ENONET;
+	}
+	if(delete_email_by_id_and_folder(data->curl,msg_id,root_dirname)){
+		return -ENONET;
+	}
+	invalidate_object_if_exist(path);
+	return 0;
+}
+
+
+
 
 static const struct fuse_operations mail_fs_operations = {
     // .destroy 				= mail_fs_destroy
@@ -403,6 +422,7 @@ static const struct fuse_operations mail_fs_operations = {
 		.write					= mail_fs_write,
 		.mknod					= mail_fs_mknod,
 		.rename					= mail_fs_rename,
+		.unlink					= mail_fs_unlink,
 };
 
 
