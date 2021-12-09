@@ -1,5 +1,5 @@
 # Else git extention will poll for changes
-mydir/
+mnt/
 git-tmp/
 README-tmp.md
 a.out
