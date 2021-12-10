@@ -8,7 +8,12 @@
 #include "../utils/definitions.h"
 #include "../utils/string_helpers.h"
 
-
+/**
+ * @brief Get the subject from response headers object
+ *
+ * @param s: response string from which subject needs to be extracted
+ * @return char*: email subject in a dynamically allocated char array
+ */
 char* get_subject_from_response_headers(custom_string* s){
 	char* sep="FETCH (BODY[HEADER.FIELDS (Subject)] {";
 	int sep_len=strlen(sep);
@@ -64,11 +69,16 @@ char* get_subject_from_response_headers(custom_string* s){
 
 
 
-// return NULL if error
+
+/**
+ * @brief method to fetch email subject by id
+ *
+ * @param curl: pointer to the curl handle
+ * @param id: id of the msg/mail
+ * @return char*: email subject or return NULL if error
+ */
 char* fetch_email_subject_by_id(CURL* curl, int id){
-
 	// fetch their subject
-
 	char id_str[MAX_LENGTH_OF_LABEL];
 	int_to_string(id_str, MAX_LENGTH_OF_LABEL, id);
 
@@ -77,20 +87,16 @@ char* fetch_email_subject_by_id(CURL* curl, int id){
 	strcat(tmp, "FETCH ");
 	strcat(tmp, id_str);
 	strcat(tmp, " BODY.PEEK[HEADER.FIELDS (Subject)]");
-
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, tmp);
-
 
 	custom_string s;
 	init_custom_string(&s);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&s);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
+	int res = curl_easy_perform(curl);
 
-
-  /* Perform the fetch */
-  int res = curl_easy_perform(curl);
-
+	// reset the curl handle
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, NULL);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, NULL);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
@@ -101,8 +107,7 @@ char* fetch_email_subject_by_id(CURL* curl, int id){
     printf("Err: Unable to fetch the email subject; msg: %s\n", curl_easy_strerror(res));
     return NULL;
   }
-
-	// parse
+	// parse the subject and return
 	return get_subject_from_response_headers(&s);
 }
 

@@ -5,7 +5,9 @@
 
 
 
-
+/**
+ * @brief method to get the specified size of content and push it in the custom_string container
+ */
 static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp){
   // contents is the data we just received
   // userp is our variable

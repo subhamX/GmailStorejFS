@@ -5,7 +5,13 @@
 #include "../utils/custom_string.h"
 #include <assert.h>
 
-
+/**
+ * @brief method to parse the response text and get the canonical label (i.e. after removing the current_full_path)
+ *
+ * @param str: response text from the imap server
+ * @param current_full_path: current path
+ * @return char*: label
+ */
 char* fetch_label(char* str, char* current_full_path){
 	char* label=(char*)malloc(sizeof(char)*MAX_LENGTH_OF_LABEL);
 	memset(label, 0, MAX_LENGTH_OF_LABEL);
@@ -35,11 +41,18 @@ char* fetch_label(char* str, char* current_full_path){
 	return label;
 }
 
+/**
+ * @brief method to parse the given response text and get all the labels
+ *
+ * @param s: response text
+ * @param labels_ptr: pointer to char* to store the labels
+ * @param size: pointer to int to store the size of labels_ptr
+ * @param current_full_path: current path (token that should be subtracted from the text to extract the label)
+ */
 void parse_labels_response(custom_string* s, char** labels_ptr, int* size, char* current_full_path){
 	char tmp[10000];
 	memset(tmp,0,10000);
 
-	// printf("TOTAL:: %s\n\n", s->ptr);
 	int indx=0;
 	int first=1;
 	for(int i=0;i<s->len;i++){
@@ -59,8 +72,16 @@ void parse_labels_response(custom_string* s, char** labels_ptr, int* size, char*
 }
 
 
-// 0 if ok; 1 if error
-// we shall fetch labels of only root label only!
+/**
+ * @brief method to fetch all labels
+ *
+ * > Note: we shall fetch labels of only root label only!
+ * @param curl: pointer to curl handle
+ * @param labels_ptr: pointer to char* to store the labels
+ * @param size: pointer to int to store the size of labels_ptr
+ * @param base_full_url: original base url path of the IMAP server
+ * @return int: 0 if ok; 1 if error
+ */
 int fetch_all_labels(CURL* curl, char** labels_ptr, int* size, const char* base_full_url){
 
   char tmp[1000];
@@ -90,14 +111,10 @@ int fetch_all_labels(CURL* curl, char** labels_ptr, int* size, const char* base_
 		printf("debug: labels fetch successfully\n");
 	}
 
-	// printf("%s", s.ptr);
-	// fflush(data->log_fptr);
-
-  char current_full_path[1000];
-  memset(current_full_path, 0, 1000);
+	char current_full_path[1000];
+	memset(current_full_path, 0, 1000);
 	strcat(current_full_path, "[Gmail]/Drafts/");
 	parse_labels_response(&s, labels_ptr, size, current_full_path);
-
 
 	return 0;
 }

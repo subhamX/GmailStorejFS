@@ -10,22 +10,16 @@
 #include "../utils/decode.h"
 
 
-// return 0 if parsing was successful with this alter parsing logic
-// int check_alter_parser(custom_string*s, int start_indx){
-// 	char* sep="Content-Type: text/plain; charset=\"UTF-8\"";
-// 	int sep_len=strlen(sep);
-
-// 	return 0;
-// }
-
+/**
+ * @brief Get the content from response headers object
+ *
+ * @param s: response string from which content needs to be extracted
+ * @return char*: email content in a dynamically allocated char array
+ */
 char* get_content_from_response_headers(custom_string* s){
 	char* body=(char*)malloc(sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
 	memset(body,0,sizeof(char)*MAX_LENGTH_OF_EMAIL_IN_STD_FORMAT);
 	decode_quoted_printable(s);
-
-	// printf("RAW CONTENT: %s\n", s->ptr);
-	// if(!check_alter_parser()) return body;
-
 
 	char* sep="FETCH (BODY[TEXT] {";
 	int sep_len=strlen(sep);
@@ -69,11 +63,15 @@ char* get_content_from_response_headers(custom_string* s){
 
 
 
-// return NULL if error
+/**
+ * @brief method to get the email content by msg_id
+ *
+ * @param curl: pointer to the curl handle
+ * @param id: id of the msg/mail
+ * @return char*: parsed email content or NULL if error
+ */
 char* fetch_email_content_by_id(CURL* curl, int id){
-
 	// fetch their subject
-
 	char id_str[MAX_LENGTH_OF_LABEL];
 	int_to_string(id_str, MAX_LENGTH_OF_LABEL, id);
 
@@ -92,7 +90,7 @@ char* fetch_email_content_by_id(CURL* curl, int id){
 
   /* Perform the fetch */
   int res = curl_easy_perform(curl);
-	// reset
+	// reset the curl handle
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, NULL);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, NULL);

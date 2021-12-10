@@ -92,7 +92,7 @@ int create_new_mail(CURL* curl, const char* folder_name, const char* subject, co
     return 1;
   }
 
-	printf("PUSH SUCCESSFUL\n");
+	printf("Debug: PUSH SUCCESSFUL\n");
 	// this was necessary
  	curl_easy_setopt(curl, CURLOPT_UPLOAD, NULL);
  	curl_easy_setopt(curl, CURLOPT_READDATA, NULL);

@@ -26,7 +26,7 @@
 #include "utils/hashmap.h"
 #include "services/change_label.h"
 
-#define PVT_DATA ((private_data_node *) fuse_get_context()->private_data)
+#define PVT_DATA ((private_data_node *) fuse_get_context()->private_data) // cmd to get the private data in one shot
 
 #define OPTION(t, p)                           \
     { t, offsetof(mailbox_config, p), 1 }
@@ -39,8 +39,7 @@ static const struct fuse_opt option_spec[] = {
 };
 
 /**
- * @brief fun to print a small prompt to user for help
- *
+ * @brief prints a small prompt on console on all options and Usage of the script
  */
 void show_help(){
 	printf("Usage: [Mount Point] [IP Address] [PORT] [Email] [Password]\n");
@@ -53,54 +52,39 @@ static mailbox_config* config=NULL;
 /**
  * @brief method to be executed by fuse while initializing the module
  *
- * @param conn
- * @param cfg
+ * @param conn fuse connection info (to be passed by FUSE)
+ * @param cfg fuse config (to be passed by FUSE)
  * @return void*
  */
 static void * mail_fs_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
-    // connect to the mail client with the credentials
-    // and return the pointer
-
-    // initialize the logging ptr which has an open file descripter
-    // every ops will be logged there
-    (void) conn;
-    // cfg->kernel_cache = 1;
-		// check
-		// cfg->attr_timeout=100000;
-
+		// initialize private data
 		private_data_node* private_data=(private_data_node*)malloc(sizeof(private_data_node));
 		private_data->config=config;
 		private_data->level=0;
 
+		// initialize curl handle and set the credentials, and options
     CURL *curl;
     curl_handle_init(&curl, private_data->config);
 		char* tmp;
 		curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL,&tmp);
 		private_data->base_full_url=strdup(tmp);
 		private_data->curl=curl;
-    // destory everything in mail_fs_destroy
+    // Note: destory everything in mail_fs_destroy
     return private_data;
 }
 
 /**
- * @brief method to use the curl handle and get the labels, and emails on server and map it to folders and files respectively
+ * @brief method to use the curl handle to get the labels(folders), and emails(files) on server present at a specific path
  *
- * @param path
- * @param buf
- * @param filler
- * @param offset
- * @param fi
- * @param flags
- * @return int
+ * @param path: current path
+ * @return int; 0 for No Error, otherwise -ERRCODE
  */
 static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi, enum fuse_readdir_flags flags){
 	(void) offset;
 	(void) fi;
 	(void) flags;
 
-	printf("\033[1;33m");
 	printf("Debug: log mail_fs_readdir: %s\n", path);
-	printf("\033[0m");
 
 	private_data_node* data=PVT_DATA;
 	char* labels_ptr[MAX_DIRS_IN_A_DIR];
@@ -129,23 +113,19 @@ static int mail_fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	filler(buf, ".", NULL, 0, 0);
 	filler(buf, "..", NULL, 0, 0);
 
-
 	return 0;
 }
 
 /**
  * @brief function to allow opening of files
  *
- * @param path
+ * @param path: file path
  * @param fi
  * @return int
  */
 static int mail_fs_open(const char *path, struct fuse_file_info *fi){
-	printf("\033[0;35m");
 	printf("Debug: log mail_fs_open: %s\n", path);
-	printf("\033[0m");
-	// if ((fi->flags & O_ACCMODE) != O_APPEND)
-	// 	return -EACCES;
+	// all files are allowed to be opened
 	return 0;
 }
 
@@ -167,14 +147,13 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	stbuf->st_atime = time( NULL ); // The last "a"ccess of the file/directory is right now
 	stbuf->st_mtime = time( NULL ); // The last "m"odification of the file/directory is right now
 
+	// for root dir, we don't need to perform a network call.
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0777;
 		stbuf->st_nlink = 2;
 		return 0;
 	}
-	printf("\033[1;31m");
 	printf("Debug: log mail_fs_getattr: %s\n", path);
-	printf("\033[0m");
 	private_data_node* data=PVT_DATA;
 
 	int res = 0;
@@ -182,8 +161,6 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 	char objectname[10000];
 
 	split_path_to_components(root_dirname, objectname, path);
-	printf("Debug: root_dirname: %s\n", root_dirname);
-	printf("Debug: objectname: %s\n", objectname);
 	int object_type=fetch_object_type_by_dirname_and_objectname(data->curl,root_dirname,objectname,data->base_full_url);
 	printf("Debug: FETCH_OBJECT_TYPE: %d\n\n", object_type);
 
@@ -191,17 +168,14 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 		stbuf->st_mode = S_IFDIR | 0777;
 		stbuf->st_nlink = 2;
 	}else if(object_type==2){
-		// if(objectname[0]>='0' && objectname[0]<='9'){
-			// stbuf->st_mode = S_IFREG | 02000;
-		// }else{
+		// Note: for numerals object we cannot make their permissions different
+		// as Linux doesn't have a APPEND_ONLY permission
 		stbuf->st_mode = S_IFREG | 0777;
-		// }
 		stbuf->st_nlink = 1;
 		stbuf->st_size = 1000000;
 	}else{
 		res=-ENOENT;
 	}
-
 	return res;
 }
 
@@ -214,16 +188,12 @@ static int mail_fs_getattr(const char *path, struct stat *stbuf, struct fuse_fil
 static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
 	size_t len;
 	(void) fi;
-	printf("\033[1;31m");
 	printf("Debug: log mail_fs_read: %s\n", path);
-	printf("\033[0m");
 
 	// getattr will ensure that here we reach only if there exist a file
 	char root_dirname[10000];
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
-	printf("Debug: root_dirname: %s\n", root_dirname);
-	printf("Debug: objectname: %s\n", objectname);
 
 	private_data_node* data=PVT_DATA;
 	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
@@ -232,6 +202,7 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 		// msg doesn't exist
 		return -ENOENT;
 	}else{
+		// fetch the message content
 		char* response= fetch_email_content_by_id(data->curl, msg_id);
 		len=strlen(response);
 		if (offset < len) {
@@ -248,21 +219,23 @@ static int mail_fs_read(const char *path, char *buf, size_t size, off_t offset, 
 /**
  * @brief function to deallocate all private data like curl handle etc
  *
+ * @param private_data: instance of pvt data to be passed by FUSE
+ * @return void
  */
 static void mail_fs_destroy(void *private_data){
 	// In docs it's mentioned to "re-using handles is a key to good performance with libcurl"
-	// so we shall clean it in the end
+	// so we shall clean it in the end, and not after every new call
 	private_data_node* pvt_data=(private_data_node*)private_data;
 	curl_easy_cleanup(pvt_data->curl);
 }
 
 /**
- * @brief function to allow writing data to files
- *
+ * @brief function to allow write the specified buffer to the file
  * @return int: 0 if successful, -ERR if error
  */
 static int mail_fs_write(const char * path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi){
-
+	// Note that for a simple update, we need to first delete the old file and then create a new one with updated content
+	// This is because IMAP doesn't support updates. (See References in README)
 	printf("PATH: %s\n", path);
 	char new_content[size+1];
 	strncpy(new_content,buf,size);
@@ -271,20 +244,23 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 	private_data_node* data=PVT_DATA;
 
 	// save the content to server
-	// delete old
+	// delete old file
 	char root_dirname[10000];
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
-	printf("Debug: root_dirname: %s\n", root_dirname);
-	printf("Debug: objectname: %s\n", objectname);
 	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
 	printf("Msg Id: %d\n", msg_id);
 	if(msg_id==-1){
-		printf("unusual\n");
+		// a file which is opened and having a msg_id as 0 shouldn't happen
+		// as opening a file validates the msg_id
+		printf("Logic Error\n");
 		return size;
 	}else{
+		// check for append only permission
 		if(objectname[0]>='0' && objectname[0]<='9'){
+			// fetch the old content
 			char* old_content=fetch_email_content_by_id(data->curl,msg_id);int i=0,j=0;
+			// check if the new_content is a strict addition to the old content; If not throw permission error!
 			int n1=strlen(old_content), n2=strlen(new_content);
 			while(i<n1 && j<n2){
 				int is_old_rn=(i+1!=n1 && old_content[i]=='\r' && old_content[i+1]=='\n');
@@ -303,10 +279,10 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 			}
 			if(i!=n1) return -EACCES;
 		}
-		assert(msg_id!=-1);
+		// delete the old message
 		delete_email_by_id_and_folder(data->curl, msg_id, root_dirname);
 	}
-	// create new
+	// create new mail and push the new content
 	create_new_mail(data->curl, root_dirname, objectname, new_content);
 
 	return size;
@@ -315,29 +291,28 @@ static int mail_fs_write(const char * path, const char *buf, size_t size, off_t 
 
 /**
  * @brief function to create a new folder
+ *
+ * @param path: path of the new folder
+ * @param mode: creation mode (Not used in implementation)
+ * @return int: 0 if Success, -ERRCODE otherwise
  */
 static int mail_fs_mkdir(const char * path, mode_t mode){
-	printf("\033[1;31m");
-	printf("Debug: log mail_fs_mkdir: %s\n", path);
-	printf("\033[0m");
-
 	char root_dirname[10000];
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
 	if(strcmp(root_dirname,"/")==0){
+		// allowed to create directory, as we are in root dir
 		private_data_node* data=PVT_DATA;
-
-		// invalidate path
+		// invalidate cache entry
 		invalidate_object_if_exist(path);
-
-		// allowed to create directory
+		// create a new label at server
 		int res=create_new_label(data->curl, path);
 		if(res){
 			printf("Debug: Failed to create\n");
 			return -ENONET;
 		}
 	}else{
-		// only 1 level is allowed
+		// only till 1 level depth creation of directories are allowed
 		return -EACCES;
 	}
 
@@ -345,26 +320,35 @@ static int mail_fs_mkdir(const char * path, mode_t mode){
 }
 
 /**
- * @brief function to create a new file
+ * @brief function to create a new file node
+ *
+ * @param path: path of the new folder
+ * @param mode: creation mode (Not used in implementation)
+ * @param rdev: (Not used in implementation)
+ * @return int: 0 if Success, -ERRCODE otherwise
  */
 static int mail_fs_mknod(const char *path, mode_t mode, dev_t rdev){
 	// create new file
-
-	printf("debug: mail_fs_mknod: %s\n", path);
 	private_data_node* data=PVT_DATA;
 	char root_dirname[10000];
 	char objectname[10000];
 	split_path_to_components(root_dirname, objectname, path);
+	// create a new mail at server
 	create_new_mail(data->curl, root_dirname, objectname, "");
-
-	// invalidate cache
+	// invalidate cache entry
 	invalidate_object_if_exist(path);
 	return 0;
 }
 
-
+/**
+ * @brief function to remove a directory
+ *
+ * @param path: path of the directory
+ * @return int: 0 for SUCCESS, -ERRCODE otherwise
+ */
 static int mail_fs_rmdir(const char * path){
 	private_data_node* data=PVT_DATA;
+	// delete the label
 	int res=delete_label(data->curl, path);
 	if(res) return -ENONET; // network error
 	// invalidate path in cache
@@ -377,40 +361,36 @@ static int mail_fs_rmdir(const char * path){
 
 /**
  * @brief function to allow renaming of dirs and files
+ *
+ * @param from_path: before path of the file/folder
+ * @param to_path: new path of the file/folder
+ * @param flags: Not used in implementation
+ * @return int: 0 for SUCCESS, -ERRCODE otherwise
  */
 static int mail_fs_rename(const char * from_path, const char * to_path, unsigned int flags){
-	printf("\033[1;31m");
 	printf("Debug: log mail_fs_rename: [%s] [%s]\n", from_path, to_path);
-	printf("\033[0m");
 
 	private_data_node* data=PVT_DATA;
 
 	char to_root_dirname[10000];
 	char to_objectname[10000];
-
 	split_path_to_components(to_root_dirname, to_objectname, to_path);
-	printf("Debug: to_root_dirname: %s\n", to_root_dirname);
-	printf("Debug: to_objectname: %s\n", to_objectname);
 
 	char from_root_dirname[10000];
 	char from_objectname[10000];
-
 	split_path_to_components(from_root_dirname, from_objectname, from_path);
-	printf("Debug: from_root_dirname: %s\n", from_root_dirname);
-	printf("Debug: from_objectname: %s\n", from_objectname);
 
 	int from_object_type=fetch_object_type_by_dirname_and_objectname(data->curl,from_root_dirname,from_objectname,data->base_full_url);
 	int to_object_type=fetch_object_type_by_dirname_and_objectname(data->curl, to_root_dirname,to_objectname,data->base_full_url);
-
 	printf("TYPE: %d %d\n", from_object_type, to_object_type);
 
 	if(from_object_type==2 && to_object_type==1){
-		// file to dir
-		// add label
-		// won't happen every; libfuse handles it internally
+		// Renaming: file to dir
+		// Verdict: won't happen every; libfuse handles it internally
 		exit(1);
 		return 0;
 	}else if(from_object_type==2 && (to_object_type==0 || to_object_type==2)) {
+		// **CASES**
 		// object_type==2; file to file: overwrite contents
 		// object_type==0; file to none: rename the subject
 		int msg_id;
@@ -420,7 +400,6 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 		// delete from email
 		delete_email_by_id_and_folder(data->curl, msg_id, from_root_dirname);
 
-
 		// delete the "to" file
 		if(to_object_type==2){
 			msg_id=fetch_msgid_by_subject_and_label(data->curl, to_objectname, to_root_dirname);
@@ -429,18 +408,18 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 				delete_email_by_id_and_folder(data->curl, msg_id, to_root_dirname);
 			}
 		}
-
+		// create a new mail with updated name
 		int res=create_new_mail(data->curl, to_root_dirname, to_objectname, content);
 		free(content);
 
-		// invalidate cache
+		// invalidate cache entries
 		invalidate_object_if_exist(to_path);
 		invalidate_object_if_exist(from_path);
 		if(res) return -ENONET;
 		return 0;
 	}else if(from_object_type==1 && to_object_type==0){
+		// Renaming: dir to none
 		// dest rootdir name should be /
-		// dir to none
 		if(strcmp(to_root_dirname, "/")) return -EACCES;
 
 		// rename the label
@@ -450,10 +429,13 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 		invalidate_object_if_exist(from_path);
 		return 0;
 	}else if(from_object_type==1 && to_object_type==1) {
-		// dir to dir: not allowed
+		// Renaming: dir to dir
+		// Verdict: not allowed
+		// handled by fuse
 		return -EACCES;
 	}else if(from_object_type==1 && to_object_type==2) {
-		// dir to file: not allowed
+		// Renaming: dir to file
+		// Verdict: not allowed
 		// handled by fuse
 		return -ENONET;
 	}else if(from_object_type==0){
@@ -469,6 +451,9 @@ static int mail_fs_rename(const char * from_path, const char * to_path, unsigned
 
 /**
  * @brief function to allow deletion of files
+ *
+ * @param path: path of the file
+ * @return int: 0 for SUCCESS, -ERRCODE otherwise
  */
 static int mail_fs_unlink(const char * path){
 	private_data_node* data=PVT_DATA;
@@ -477,17 +462,19 @@ static int mail_fs_unlink(const char * path){
 	split_path_to_components(root_dirname, objectname, path);
 
 	if(objectname[0]>='0' && objectname[0]<='9'){
-		// not allowed
+		// not allowed as the starting is a numeral
 		return -EACCES;
 	}
-
+	// fetch the message id
 	int msg_id=fetch_msgid_by_subject_and_label(data->curl, objectname, root_dirname);
 	if(msg_id==-1){
 		return -ENONET;
 	}
+	// delete the mail
 	if(delete_email_by_id_and_folder(data->curl,msg_id,root_dirname)){
 		return -ENONET;
 	}
+	// invalidate cache
 	invalidate_object_if_exist(path);
 	return 0;
 }
@@ -521,13 +508,12 @@ int main(int argc, char* argv[]){
 	if (fuse_opt_parse(&args, config, option_spec, NULL) == -1)
 		return 1;
 
-	// initialize the LRU cache
+	// initialize the cache
 	hashmap_init();
 
 	int ret;
 	ret = fuse_main(args.argc, args.argv, &mail_fs_operations, NULL);
 	fuse_opt_free_args(&args);
-
 
 	free(config);
 	return ret;

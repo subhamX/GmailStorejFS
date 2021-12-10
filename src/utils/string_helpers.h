@@ -3,10 +3,17 @@
 
 
 
-// ensure that enough size is allocated to res; although checks are in place
-// sz is size of the [res] string
+/**
+ * @brief function to convert integer to string
+ * > ensure that enough size is allocated to res; although checks are in place
+ * > sz is size of the [res] string
+ *
+ * @param res: pointer to the char array to get the results
+ * @param sz
+ * @param n
+ */
 void int_to_string(char* res, int sz, int n){
-	assert(sz);
+	assert(sz); // ensure that sz is actually some valid non zero number
 
 	int i=0;
 	while(n){
@@ -16,7 +23,6 @@ void int_to_string(char* res, int sz, int n){
 	}
 	res[i]='\0';
 
-	// printf("DEBUG: %s\n", res);
 	// reverse [0...i-1]
 	for(int j=0;j<(i)/2;j++){
 		char tmp=res[j];
@@ -25,7 +31,12 @@ void int_to_string(char* res, int sz, int n){
 	}
 }
 
-
+/**
+ * @brief function to reverse the string
+ *
+ * @param str: input string to reverse inplace
+ * @param n: size of the string
+ */
 void reverse_str(char* str, int n){
 	// reverse
 	for(int k=0;k<n/2;k++){
@@ -38,14 +49,22 @@ void reverse_str(char* str, int n){
 
 
 
-// split path to label and subject
-// if dir then '\0'
-// /bar; where bar is a directory will return {/, bar}
-// /hello.txt; where hello.txt is a file will return {/, hello.txt}
-// /bar/hello.txt; where hello.txt is a file will return {/bar, hello.txt}
-// /; will return error; this should be handled there itself
 
 // objectname because it can be dirname or objectname
+/**
+ * @brief function to split the path to rootname and objectname
+ *
+ * Cases:
+ * if dir then objectname is '\0'
+ * /bar; where bar is a directory will return {/, bar}
+ * /hello.txt; where hello.txt is a file will return {/, hello.txt}
+ * /bar/hello.txt; where hello.txt is a file will return {/bar, hello.txt}
+ * /; will return error; this should be handled there itself
+ *
+ * @param root_dirname: pointer to char array to store the root_dirname extracted from path
+ * @param objectname: pointer to char array to store the objectname extracted from path
+ * @param path
+ */
 void split_path_to_components(char* root_dirname, char* objectname, const char* path){
 	objectname[0]='\0';
 	root_dirname[0]='/';
@@ -58,8 +77,7 @@ void split_path_to_components(char* root_dirname, char* objectname, const char* 
 		objectname[object_ptr++]=path[i--];
 	}
 	objectname[object_ptr]='\0';
-	// TODO: fix object ptr by reversing and ending with '/0'
-	// reverse
+	// reverse string
 	reverse_str(objectname,object_ptr);
 
 	if(i==0){
@@ -73,12 +91,10 @@ void split_path_to_components(char* root_dirname, char* objectname, const char* 
 			root_dirname[root_ptr++]=path[i--];
 		}
 		root_dirname[root_ptr]='\0';
-		// reverse
+		// reverse string
 		reverse_str(root_dirname,root_ptr);
 	}
-
 }
-
 
 
 #endif

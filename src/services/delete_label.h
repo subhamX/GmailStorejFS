@@ -6,9 +6,15 @@
 #include <curl/curl.h>
 
 
-// returns 1 if unsuccessful; 0 if successful
-// note that we are not removing h/a, h/a/b if we are asked to remove label 'h'
-// this is because the assignment assumes that the max depth of the folders will be "1"
+/**
+ * @brief function to delete an entrire label
+ *
+ * > Note that the mails won't be deleted, rather they will only lose the label. So it will give a sense of recursive deletion.
+ * > Note that we are not removing h/a, h/a/b if we are asked to remove label 'h'. this is because the assignment assumes that the max depth of the folders will be "1"
+ * @param curl: pointer to the curl handle
+ * @param folder_name: folder name to be deleted
+ * @return int: 0 if success, 1 otherwise
+ */
 int delete_label(CURL* curl, const char* folder_name){
   if(!curl) return 1;
 

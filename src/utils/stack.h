@@ -5,11 +5,11 @@
 #include "definitions.h"
 
 
-// stack ops
+// stack operations
 
 /**
  * @brief Get the top dir element in stack
- * 
+ *
  * @param current_directory_ptr : stack head pointer
  * @param size : current size of the stack before insertion
  * @return char* : the string present in top of the stack
@@ -25,7 +25,7 @@ char* get_top_dir(char** current_directory_ptr, int* size){
 
 /**
  * @brief function to push a directory to the stack
- * 
+ *
  * @param current_directory_ptr : stack head pointer
  * @param size : current size of the stack before insertion
  * @param label : string which needs to be pushed. Ensure that it's dynamically allocated
@@ -41,7 +41,7 @@ void push_dir(char** current_directory_ptr, int* size, char* label){
 
 /**
  * @brief function to pop one element from top of the stack
- * 
+ *
  * @param current_directory_ptr : stack head pointer
  * @param size : current size of the stack before insertion
  */

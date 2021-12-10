@@ -5,8 +5,7 @@
 
 /**
  * @brief function to initialize the custom string with NULL values
- *
- * @param s
+ * @param s: pointer to the struct of custom_type
  */
 void init_custom_string(struct custom_string *s) {
   s->len = 0;

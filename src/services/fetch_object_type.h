@@ -14,9 +14,15 @@
 #include "../utils/hashmap.h"
 
 
-
-
-// return 1 if dir, 2 if file, 0 if not found
+/**
+ * @brief method to get the object type of a resource
+ *
+ * @param curl: pointer to the curl handle
+ * @param root_dirname: root dirname of the resource
+ * @param objectname: objectname of the resource
+ * @param base_url: base url of the object
+ * @return int: 1 if dir, 2 if file, 0 if not found
+ */
 int fetch_object_type_by_dirname_and_objectname(CURL* curl, const char* root_dirname, const char* objectname, const char* base_url){
   if(!curl) return 1;
 
@@ -25,6 +31,8 @@ int fetch_object_type_by_dirname_and_objectname(CURL* curl, const char* root_dir
 	strcat(full_object_path,root_dirname);
 	if(strcmp(root_dirname,"/")) strcat(full_object_path,"/");
 	strcat(full_object_path,objectname);
+
+	// check for entries in the cache
 	int object_type=search_hashmap(full_object_path);
 	if(object_type!=-1){
 		printf("\033[0;32m");
@@ -39,7 +47,6 @@ int fetch_object_type_by_dirname_and_objectname(CURL* curl, const char* root_dir
 	if(msg_id!=-1){
 		object_type=2;
 	}else if(strcmp(root_dirname, "/")==0){
-		// ! DEBUG: returning 1
 		char* labels_ptr[MAX_DIRS_IN_A_DIR];
 		int number_of_labels=0;
 		// look in the folders dir
@@ -50,22 +57,30 @@ int fetch_object_type_by_dirname_and_objectname(CURL* curl, const char* root_dir
 			}
 		}
 	}
+	// push the object to cache
 	push_object(full_object_path, object_type);
 	return object_type;
 }
 
 
-// return 1 if dir, 2 if file, 0 if not found
+
+/**
+ * @brief method to get the object type
+ *
+ * @param curl: pointer to the curl handle
+ * @param path: full path of the object
+ * @param base_url: base url of the imap server
+ * @return int: 1 if dir, 2 if file, 0 if not found
+ */
 int fetch_object_type(CURL* curl, const char* path, const char* base_url){
   if(!curl) return 1;
 
+	// split the path into dirname and objectname
 	char root_dirname[10000];
 	char objectname[10000];
-
 	split_path_to_components(root_dirname, objectname, path);
-	printf("Debug: root_dirname: %s\n", root_dirname);
-	printf("Debug: objectname: %s\n", objectname);
 
+	// fetch the object type
 	return fetch_object_type_by_dirname_and_objectname(curl, root_dirname, objectname, base_url);
 }
 

@@ -30,13 +30,10 @@ typedef struct mailbox_config {
 
 
 typedef struct private_data_node{
-	// TODO: put creds here
 	mailbox_config* config;
 	CURL* curl;
 	char* base_full_url;
 	int level; // at max we shall allow only 1 level
-	// file ptr
-	// FILE* log_fptr;
 } private_data_node;
 
 

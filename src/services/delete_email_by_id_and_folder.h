@@ -25,8 +25,6 @@ int delete_email_by_id_and_folder(CURL* curl, int id, char* current_folder){
   memset(id_str, 0, 1000);
 	int_to_string(id_str, 1000, id);
 
-	printf("Yayayayaya\n");
-
   int res = delete_label_from_email(curl, id, current_folder);
   if(res != CURLE_OK){
 		printf("Err: Remove label unsuccessful\n");

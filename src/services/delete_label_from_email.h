@@ -8,15 +8,19 @@
 #include "../utils/string_helpers.h"
 
 
-
-
-// returns 1 if unsuccessful; 0 if successful
+/**
+ * @brief method to delete a label from the email
+ *
+ * @param curl: pointer to the curl handle
+ * @param id: message/mail id
+ * @param folder_name: folder name to be deleted
+ * @return int: 0 if success, 1 otherwise
+ */
 int delete_label_from_email(CURL* curl, int id, const char* folder_name){
   if(!curl) return 1;
 
   char tmp[1000];
   memset(tmp, 0, 1000);
-
   strcat(tmp, "STORE ");
 	char id_str[MAX_LENGTH_OF_LABEL];
 	// no memset needed as it will be applied by [int_to_string]
@@ -27,12 +31,10 @@ int delete_label_from_email(CURL* curl, int id, const char* folder_name){
   strcat(tmp, BASE_MAILBOX_LABEL);
   strcat(tmp, folder_name);
 
-	printf("DEBUG: %s\n", tmp);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, tmp);
 
   /* Perform the fetch */
   int res = curl_easy_perform(curl);
-	printf("DONE %s\n", tmp);
 
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 

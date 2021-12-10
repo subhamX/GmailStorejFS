@@ -7,7 +7,15 @@
 
 unsigned long counter=0;
 
+// Naive caching implementation
+// considering that we will be handling very small number of nodes, linear time is fine maybe for now!
+// TODO: make the implementation more efficient; For now it's linear. :(
 
+
+/**
+ * @brief cache entry specs
+ *
+ */
 typedef struct canary_node{
 	char* path;
 	int is_valid;
@@ -18,16 +26,22 @@ typedef struct canary_node{
 // container to store the nodes
 canary_node container[NUMBER_OF_CACHED_NODES];
 
+/**
+ * @brief initialize hashmap
+ *
+ */
 void hashmap_init(){
 	for(int i=0;i<NUMBER_OF_CACHED_NODES;i++){
 		container[i].is_valid=0;
 	}
 }
 
-// hashmap ops
-// make the hashmap more efficient; For now it's linear. :(
-
-// -1 if cache miss; 0 if doesn't exist; 1 if dir; 2 if file
+/**
+ * @brief search hashmap for the given entry
+ *
+ * @param path: object full path
+ * @return int: -1 if cache miss; 0 if doesn't exist; 1 if dir; 2 if file
+ */
 int search_hashmap(char* path){
 	for(int i=0;i<NUMBER_OF_CACHED_NODES;i++){
 		if(container[i].is_valid && strcmp(path,container[i].path)==0){
@@ -39,7 +53,12 @@ int search_hashmap(char* path){
 	return -1;
 }
 
-
+/**
+ * @brief push a cache entry with the specified object_type
+ *
+ * @param path: object full path
+ * @param object_type: object type; 1 for dir; 2 for file
+ */
 void push_object(const char* path, int object_type){
 	// assert(strcmp(root_dirname, container.root_dirname)==0);
 	int mini_indx=0;
@@ -61,10 +80,14 @@ void push_object(const char* path, int object_type){
 	container[mini_indx].is_valid=1;
 }
 
+/**
+ * @brief method to invalidate a cache object if it exists
+ *
+ * @param path: object full path
+ */
 void invalidate_object_if_exist(const char* path){
 	printf("Trying to invalidate: %s\n", path);
 	for(int i=0;i<NUMBER_OF_CACHED_NODES;i++){
-		// if(container[i].is_valid) printf("%s", container[i].path);
 		if(container[i].is_valid && strcmp(path,container[i].path)==0){
 			container[i].is_valid=0;
 			printf("INVALIDATE SUCCESSFUL\n");

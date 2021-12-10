@@ -27,8 +27,6 @@ void curl_handle_init(CURL **curl, mailbox_config* config){
 	// curl_easy_setopt(curl, CURLOPT_VERBOSE, 100L);
 
 
-	// curl_easy_setopt(*curl, CURLOPT_URL,"imaps://imap.gmail.com:993/INBOX");
-	// %5BGmail%5D/Drafts
 	char url[10000];
 	memset(url, 0, 10000);
 	strcat(url, config->ip_address);
@@ -65,7 +63,6 @@ void custom_curl_handle_reset(CURL **curl){
 	strcat(url, ":");
 	strcat(url, global_config_ptr->port);
 	strcat(url, "/%5BGmail%5D/Drafts");
-	// curl_easy_setopt(*curl, CURLOPT_URL,"imaps://imap.gmail.com:993/INBOX");
 	curl_easy_setopt(*curl, CURLOPT_URL,url);
 	curl_easy_setopt(*curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
 
