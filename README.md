@@ -12,22 +12,12 @@
 
 ## Project Snapshots
 
-### Mailbox Current State at Gmail Dashboard
-![mailbox current state](./docs/ls_dashboard.png)
-
-### Mailbox Mounted on User Filesystem
-![Mailbox Mounted on User Filesystem](./docs/ls_terminal.png)
+![GmailStorejFS in action](./docs/pic1.png)
 
 
-### Append Only Permissions
-
-**0whoami.md before state**
-![Append Only Permissions before](./docs/append_only_before.png)
-
-**0whoami.md permission error on overwrite**
-![Append Only Permissions after](./docs/append_only_after.png)
 
 
+![GmailStorejFS Append only permissions](./docs/pic2.png)
 
 
 ## Compile
@@ -66,7 +56,7 @@ gcc -Wall main.c -lcurl -luuid `pkg-config fuse3 --cflags --libs`
 * IMAP Extensions: https://developers.google.com/gmail/imap/imap-extensions
 * Quoted printable parser: https://www.w3.org/Tools/Mail-Transcode/mail-transcode.c
 * Editing a draft isn't possible with IMAP: [Link](https://stackoverflow.com/questions/16945041/imap-editing-a-draft-or-existing-message#:~:text=There%20are%20no%20IMAP%20commands,to%20existing%20messages%20\(%20STORE%20\).&text=Indeed%2C%20the%20specification%20guarantees%20that,with%20a%20UID\)%20is%20immutable)
-* File stats cannot be set with readdir: https://github.com/billziss-gh/winfsp/issues/44
+* File stats cannot be set with `readdir`: https://github.com/billziss-gh/winfsp/issues/44
 * Why we are not reporting size of file contents in `getattr`: [Link](https://stackoverflow.com/questions/46267972/fuse-avoid-calculating-size-in-getattr)
-* Issue with clean unmount programatically: https://github.com/billziss-gh/cgofuse/issues/6
+* Issue with clean unmount programmatically: https://github.com/billziss-gh/cgofuse/issues/6
 
