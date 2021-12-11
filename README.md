@@ -6,7 +6,7 @@
 
 1. **✨ Supports full-duplex synchronization:** Any updates performed via the mailbox dashboard and any other third party client will be reflected immediately on the following query except in some cases. Similarly, all local updates are synced instantly with the server.
 2. **⚡ Blazing performance:** Includes an intelligent caching system to service user requests at higher throughput.
-3. **📘 Organization by directories:** Directories up to one level and supported to keep the files organized.
+3. **📘 Organization by directories:** Directories up to one level are supported to keep the files organized.
 4. **🔥 Includes quoted-printable parser** to handle very long text files.
 5. **🚀 Supports append-only permission per file basis:** Contents inside files starting with any numerals can only be appended and cannot be deleted.
 
